@@ -8,8 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
     "check:docs": "node ../scripts/check-docs-consistency.mjs"
-  },
+  },,
   "dependencies": {
     "daisyui": "^5.5.19",
     "react": "^19.2.4",
@@ -28,6 +29,7 @@
     "globals": "^17.4.0",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vitest": "^4.1.4"
   }
 }
