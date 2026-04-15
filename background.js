@@ -165,7 +165,7 @@ function normalizeRuntimeConfig(input) {
   const rawMode = safeName(input?.repositoryMode).toLowerCase();
   const mode = rawMode === 'cloud' ? 'cloud' : 'local';
   const baseUrl = safeName(input?.cloudApiBaseUrl).replace(/\/+$/g, '');
-  const timeoutRaw = Number(input?.cloudTimeoutMs || DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs);
+  const timeoutRaw = Number(input?.cloudTimeoutMs ?? DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs);
   const cloudTimeoutMs = Number.isFinite(timeoutRaw)
     ? Math.max(3000, Math.min(60000, Math.floor(timeoutRaw)))
     : DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs;
@@ -890,8 +890,7 @@ async function signInWithPassword(payload) {
   if (dataRepository.mode !== 'cloud') {
     runtimeConfig = normalizeRuntimeConfig({
       ...runtimeConfig,
-      repositoryMode: 'cloud',
-      cloudApiBaseUrl: safeName(runtimeConfig.cloudApiBaseUrl) || 'mock://local'
+      repositoryMode: 'cloud'
     });
     await writeRuntimeConfigRecord(runtimeConfig);
     dataRepository = createDataRepository(runtimeConfig.repositoryMode);
