@@ -1,5 +1,12 @@
 # UI Design Spec: World-Link Alpha
 
+- Design Source: StyleKit 风格库 + World-Link 产品约束
+- Design Version: v1.14
+- Last Synced: 2026-04-16
+
+> 风格决策基线见：`design/style-decision-v1.md`  
+> 代码 token 文件：`sidepanel/src/styles/stylekit-theme-v1.css`
+
 ## 1. Design Positioning
 
 ## 1.1 产品气质
@@ -39,6 +46,15 @@ World-Link Alpha 的视觉定位不是“展示型创意页面”，而是：
   - 字体与视觉层级再统一
   - 网页采集弹窗与 Sidepanel 的品牌语言统一
 
+## 1.4 术语清晰化（文案约束）
+
+- 对外统一使用：
+  - `世界观库`（替代“世界”）
+  - `当前作品`（替代“书项目”）
+  - `设定 / 设定卡`（替代“实体”）
+  - `灵感记录 / 灵感箱`（替代“捕获”）
+- 技术文档允许保留 `Entity`，但 UI 文案不直接暴露技术词。
+
 ---
 
 ## 2. 页面结构设计
@@ -76,7 +92,7 @@ flowchart TD
 - Header 采用紧凑工具栏样式（单行主标题 + 单行副标题），禁止多行大标题占用首屏
 
 ### Global Context Card
-- 设置 `世界 / 书项目`
+- 设置 `世界观库 / 当前作品`
 - 是所有任务的上文，不属于任一 Tab
 
 ### Primary Tab Bar
@@ -85,14 +101,15 @@ flowchart TD
 
 ### Active Task Card
 - 当前真实工作区
-- 当前只切换 `实体 / 捕获 / 概览`
+- 当前只切换 `设定库 / 灵感箱 / 总览`
+- 概览态优先呈现“跨世界快览 → 当前世界摘要 → 图谱/时间轴”
 
 ## 2.3 信息流设计
 
 用户在 Sidepanel 的标准操作路径应为：
 
-1. 先确认上下文（世界 / 书）
-2. 再切换任务（实体 / 捕获 / 概览）
+1. 先确认上下文（世界观库 / 当前作品）
+2. 再切换任务（设定库 / 灵感箱 / 总览）
 3. 最后在当前任务区完成搜索 / 整理 / 编辑
 
 也就是：
@@ -120,9 +137,12 @@ Context First → Task Second → Action Third
 - `EntityCard`
 - `EntityEditor`
 - `EntityTagEditor`
+- `EntityRelationEditor`
+- `RelationGraphPreviewCard`
 - `CaptureCard`
 - `MetricsCard`
 - `SummaryCard`
+- `CrossWorldQuickList`
 
 ### 基础组件
 - `Button`
@@ -143,29 +163,47 @@ Context First → Task Second → Action Third
 - 展示品牌标识、产品名、简短说明
 
 ### `GlobalContextCard`
-- 负责世界与书项目的选择
-- 字段级操作包括 `+ 新世界`、`+ 新书`
+- 负责世界观库与当前作品的选择
+- 字段级操作包括 `+ 新建世界观`、`+ 新建作品`
 
 ### `PrimaryTabBar`
 - 负责一级任务切换
-- `捕获` 可显示数量徽标
+- `灵感箱` 可显示数量徽标
 
 ### `EntityToolbar`
 - 承担搜索、类型过滤、后续标签过滤与导出入口
 
 ### `EntityCard`
-- 展示实体摘要
+- 展示设定摘要
 - 是列表视图中的最小业务单元
 
 ### `EntityEditor`
-- 展示当前实体的结构化表单
-- 承担编辑和保存动作
+- 展示当前设定的结构化表单
+- 承担编辑、关系维护和保存动作
+- 已支持 AI 总结 / 扩写按钮（Pro 门禁）
+- 已支持 AI 查重 / 冲突提醒按钮（Pro 门禁）
+- 支持书稿解析候选设定回填
 
 ### `CaptureCard`
-- 承担历史捕获展示、状态流转与“转实体”动作
+- 承担历史灵感展示、状态流转与“转设定”动作
+
+### `RelationGraphPreviewCard`
+- 承担概览页关系预览（关系节点、类型分布、最近关系边）
+- 当前已支持交互图谱（缩放 / 拖拽 / 节点高亮）
+- 支持世界图谱 / 本书图谱切换
+- 当前作品图谱支持独立作品下拉切换（不改全局上下文）
+- 已接入力导向布局，减少节点重叠
 
 ### `MetricsCard`
 - 用于概览中的轻量统计
+
+### `TimelineBlock`
+- 承担概览页时间轴展示（设定更新 + 灵感记录）
+
+### `CrossWorldQuickList`
+- 承担概览页跨世界快速浏览与跳转
+- 展示每个世界的作品数 / 设定数 / 关系数
+- 当前世界展示“当前”标签并禁用重复切换按钮
 
 ## 3.3 组合关系
 
@@ -262,6 +300,8 @@ Sidepanel Shell
 - 表单项间距：`12px`
 - 列表项间距：`8px`
 - 标题与正文：`16px`
+- 概览块（overview-block）之间：`12px`
+- 跨世界快览列表项上下内边距：`8px`
 
 ## 4.5 圆角 / 阴影 / 边框
 
@@ -320,7 +360,23 @@ Sidepanel Shell
 
 - 按钮点击后必须在 `100ms` 内给出视觉反馈
 - 保存类操作要么进入 loading，要么立即 toast / error
-- 切换 Tab 时不允许丢失世界 / 书上下文
+- 切换 Tab 时不允许丢失世界观库 / 当前作品上下文
+
+### 关系图谱交互（新增）
+- 滚轮缩放范围：`0.75x ~ 2.4x`
+- 支持背景拖拽平移，拖拽中鼠标态切换为 grabbing
+- 点击节点进入焦点态，仅高亮相邻节点与边
+- 再次点击同一节点取消焦点，高亮恢复全量
+- 提供“放大 / 缩小 / 重置”按钮，确保无鼠标滚轮设备也可操作
+- 当前作品图谱仅在已选择作品时可用；未选择时按钮禁用并提供提示
+- 当前作品图谱支持手动切换目标作品，切换后图谱与关系明细同步刷新
+- 节点布局采用力导向迭代，优先保证关系可读性与交互稳定性
+
+### 跨世界快览交互（新增）
+- 默认按“关系数 > 设定数 > 作品数”排序展示前 6 个世界
+- 点击“切换”按钮后，更新全局世界上下文并切到概览 Tab
+- 当前世界按钮禁用并显示“当前”，避免误触发重复刷新
+- 列表项内容必须支持换行，保证 `320–400px` 下无横向滚动
 
 ## 5.3 Loading / Empty / Error
 
@@ -331,8 +387,8 @@ Sidepanel Shell
 ### Empty
 - 空状态必须给出下一步动作建议
 - 例如：
-  - “请先选择或创建一个世界”
-  - “当前世界尚无实体，可先从捕获整理”
+  - “请先选择或创建一个世界观库”
+  - “当前世界观库尚无设定，可先从灵感箱整理”
 
 ### Error
 - 表单错误就近展示
@@ -340,10 +396,10 @@ Sidepanel Shell
 
 ## 5.4 如何减少用户操作成本
 
-1. 上下文常驻，避免重复选择世界 / 书
-2. 高频任务默认落到 `实体`
-3. 从捕获转实体时自动跳转并预填
-4. 把 `新世界 / 新书` 放在字段级，不额外开一列按钮区
+1. 上下文常驻，避免重复选择世界观库 / 当前作品
+2. 高频任务默认落到 `设定库`
+3. 从灵感转设定时自动跳转并预填
+4. 把 `新建世界观 / 新建作品` 放在字段级，不额外开一列按钮区
 
 ## 5.5 Accessibility Baseline（新增）
 
@@ -421,6 +477,7 @@ World-Link Alpha 不是“只为 320–400px 设计”，而是：
 - 导出按钮组在 `<=420px` 自动换行，不允许把容器撑出侧边栏
 - 长链接 / 长文本必须截断或换行
 - 不允许固定宽按钮把表单挤出边界
+- 右侧操作按钮必须为紧凑尺寸（如 `btn-mini`），并允许左侧文本区占满剩余宽度
 
 ---
 
@@ -428,9 +485,9 @@ World-Link Alpha 不是“只为 320–400px 设计”，而是：
 
 ## 8.1 必须修好的细节
 
-- 不出现横向滚动条
+- 不出现横向滚动条（已在壳层与卡片容器兜底）
 - 卡片间距统一为同一套 rhythm
-- 列表卡片间距固定为 `10px`，模块间距固定为 `14px`
+- 列表卡片间距固定为 `10px`，模块间距固定为 `16px`
 - 字段级操作不再孤立成一整列
 - 标签数量克制，单卡不超过 3 个主要标签
 - 卡片摘要控制在 2 行左右
@@ -519,7 +576,9 @@ World-Link Alpha 不是“只为 320–400px 设计”，而是：
 - `sidepanel/src/components/EntitySection.jsx`
 - `sidepanel/src/components/CaptureSection.jsx`
 - `sidepanel/src/components/WorldSummaryCard.jsx`
+- `sidepanel/src/components/RelationGraphPreviewCard.jsx`
 - `sidepanel/src/index.css`
+- `sidepanel/src/styles/stylekit-theme-v1.css`
 
 ### 设计职责映射
 - `App.jsx`：信息架构与壳层
@@ -528,4 +587,5 @@ World-Link Alpha 不是“只为 320–400px 设计”，而是：
 - `EntitySection.jsx`：核心生产力体验
 - `CaptureSection.jsx`：素材收件箱体验
 - `WorldSummaryCard.jsx`：摘要表达
+- `RelationGraphPreviewCard.jsx`：关系图谱交互预览
 - `index.css`：design token 与基础样式系统

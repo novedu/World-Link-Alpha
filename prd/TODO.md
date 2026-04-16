@@ -12,6 +12,68 @@
 
 ---
 
+## 术语口径（对外文案）
+
+- 世界 → `世界观库`
+- 书项目 → `当前作品`
+- 实体 → `设定 / 设定卡`
+- 捕获记录 → `灵感记录`
+
+> 说明：代码层仍保留 `Entity` 等模型命名，避免破坏存量数据与接口契约。
+
+---
+
+## 连续开发执行清单（2026-04-16 起）
+
+- [x] Task 01｜术语清晰化 v1（UI 主流程）
+  - Owner: 前端负责人
+  - Due: 2026-04-16
+  - Status: done
+  - 已完成：Tab、上下文区、设定区、灵感区、总览区核心用户文案统一
+
+- [ ] Task 02｜跨世界快览 v1（筛选 / 分组 / 排序器）
+  - Owner: 前端负责人
+  - Due: 2026-04-18
+  - Status: in_progress
+  - 当前进展：已完成关键词筛选 + 排序器（按关系/设定/作品）
+
+- [ ] Task 03｜关系图谱 v4（性能优化）
+  - Owner: 前端负责人
+  - Due: 2026-04-20
+  - Status: todo
+
+- [ ] Task 04｜书稿解析 v1（关系推断）
+  - Owner: 前端负责人
+  - Due: 2026-04-22
+  - Status: todo
+
+- [ ] Task 05｜AI 总结/扩写 v1（云模型化）
+  - Owner: 前后端联调
+  - Due: 2026-04-24
+  - Status: todo
+
+- [ ] Task 06｜AI 冲突检查 v1（语义化）
+  - Owner: 前后端联调
+  - Due: 2026-04-26
+  - Status: todo
+
+- [ ] Task 07｜导出 v2（结构增强 + 作品模板）
+  - Owner: 前端负责人
+  - Due: 2026-04-27
+  - Status: todo
+
+- [ ] Task 08｜视觉统一 v2（组件细节与图标体系）
+  - Owner: UI/前端
+  - Due: 2026-04-28
+  - Status: todo
+
+- [ ] Task 09｜云端主存储默认切换联调
+  - Owner: 后端负责人
+  - Due: 2026-05-05
+  - Status: todo
+
+---
+
 ## 已完成（当前代码已落地） ✅
 
 - [x] 网页右键划词触发采集
@@ -91,6 +153,11 @@
   - 收敛网页采集弹窗与 Sidepanel 的视觉语言
   - 统一按钮、输入框、边框、间距和反馈风格
 
+- [x] 风格基线决策 v1
+  - 新增：`design/style-decision-v1.md`
+  - 新增主题 token：`sidepanel/src/styles/stylekit-theme-v1.css`
+  - `sidepanel/src/main.jsx` 已接入风格 token 文件
+
 - [x] 账号入口改造 v1
   - 账号与同步不再首屏常驻展示
   - 改为 Header 右上角账号入口 + 弹窗按需打开
@@ -120,8 +187,14 @@
     - 最近时间（24h / 7d / 30d）
     - 状态（未整理 / 已整理 / 已转实体）
 
-- [ ] Empty State 细化
-  - 不同场景下给出更明确的下一步建议
+- [x] Empty State 细化
+  - 实体页：
+    - 无世界时提供「新建世界 / 去捕获素材」CTA
+    - 无筛选结果时提供「清空筛选」CTA
+    - 本书无绑定实体时提供「新建实体 / 查看世界实体 / 去捕获页」CTA
+  - 捕获页：
+    - 无筛选结果时提供「清空筛选」CTA
+    - 无捕获记录时提供「去实体页手动新建」CTA
 
 ---
 
@@ -153,19 +226,53 @@
   - 新增：`prd/development-guidelines.md`
   - 明确：`App.jsx` 规模阈值、组件职责边界、PR 自检清单
 
-- [ ] App.jsx 模块化 v2（降复杂度）
+- [x] 消息参数前置校验与错误口径统一
+  - `background.js` 已对关键写入/配置/登录消息做 payload 校验
+  - 非法参数统一返回：`success: false` + `errorType: 'validation'`
+
+- [x] Runtime 配置归一化口径统一
+  - `repositoryMode` 统一收敛为 `local/cloud`
+  - `cloudApiBaseUrl` 统一 trim + 去尾斜杠
+  - `cloudTimeoutMs` 统一 clamp 到 `3000~60000`
+
+- [x] Sidepanel 云端配置去除隐式默认回填
+  - `App.jsx` 与登录切换链路不再注入 `mock://local`
+  - 避免隐藏默认值掩盖真实配置问题
+
+- [x] Vitest 最小回归测试（utils + runtimeApi）
+  - 新增：`sidepanel/src/utils/entityUtils.test.js`
+  - 新增：`sidepanel/src/utils/captureUtils.test.js`
+  - 新增：`sidepanel/src/services/runtimeApi.test.js`
+
+- [x] ESLint 历史问题修复
+  - 修复 `EntitySection` 中 `set-state-in-effect` 违规写法
+  - 修复 `tailwind.config.js` 中 `require` 的 ESM 兼容问题
+  - 当前 `npm run lint` 已通过
+
+- [x] App.jsx 模块化 v2（降复杂度）
   - Owner: 前端负责人
   - Due: 2026-04-26
-  - Status: in_progress
+  - Status: done
   - 当前进展：
     - 已完成：`useEntityFilters`
     - 已完成：`useCaptureFilters`
     - 已完成：`services/runtimeApi`
     - 已完成：`services/exportService`
-    - `App.jsx` 行数：`1147 → 938`
-  - 待完成：
-    - `useRuntimeContext`（账号/套餐/同步上下文）
-    - `useActionDialogFlow`（创建世界/创建书/登录/迁移动作）
+    - 已完成：`useRuntimeContext`
+    - 已完成：`useActionDialogFlow`
+    - 已完成：`useEntityEditorFlow`
+    - 已完成：`useCaptureInboxFlow`
+    - 已完成：`useStorageSync`
+    - 已完成：`useExportFlow`
+    - 已完成：`useOverviewStats`
+    - 已完成：`useAccountViewModel`
+    - 已完成：`useUiMessage`
+    - 已完成：`useSelectionState`
+    - 已完成：`InlineMessage`（提示条独立组件）
+    - 已完成：`useWorldBookMeta`
+    - 已完成：`useWorldBookSelectionHandlers`
+    - 已完成：`App.jsx` 内联样式清理（卡片 Header Meta 颜色）
+    - `App.jsx` 行数：`1147 → 938 → 624 → 523 → 404 → 399 → 375 → 360 → 361 → 370`
 
 ---
 
@@ -224,40 +331,81 @@
 
 ## P2：关系与图谱
 
-- [ ] 实体关系边 v1
-  - 支持建立实体之间的关系
-  - 如：
-    - 所属
-    - 敌对
-    - 亲属
-    - 使用
-    - 起源于
+- [x] 实体关系边 v1
+  - 已支持在实体编辑器中维护“当前实体 → 目标实体”的关系
+  - 已支持关系类型：所属 / 敌对 / 亲属 / 使用 / 起源于 / 关联
+  - 已落库存储：`entityRelations`
+  - 已支持概览页关系数量统计（按当前世界口径）
 
-- [ ] 世界级图谱 v1
-  - 展示当前世界的实体关系网络
+- [x] 世界级图谱 v1（只读预览）
+  - 概览页已新增关系图谱预览区
+  - 已支持关系节点关联度、关系类型分布、最近关系边列表
+  - 当前为结构化预览，不含力导向交互
 
-- [ ] 书级图谱 v1
-  - 仅展示当前书使用的实体及其关系
+- [x] 世界级图谱 v2（交互图）
+  - 已支持缩放（滚轮 + 按钮）与拖拽平移
+  - 已支持节点点击高亮邻边 / 邻节点
+  - 已支持焦点节点关系明细联动
+
+- [x] 世界级图谱 v3（布局算法）
+  - 已引入力导向布局，降低节点重叠并改善边可读性
+  - 节点位置支持多轮迭代收敛，布局更稳定
+
+- [ ] 世界级图谱 v4（性能与渲染优化）
+  - 大规模关系下做增量布局与渲染性能优化
+
+- [x] 书级图谱 v1
+  - 已支持在概览页切换「世界图谱 / 本书图谱」
+  - 仅展示当前书使用实体之间的关系边
+  - 关系类型分布与关系明细已按书级口径联动
+
+- [x] 书级图谱 v2（书项目内切换）
+  - 已支持在不切全局上下文前提下，快速切换目标书图谱
+  - 概览页书图谱支持独立书项目下拉选择
+
+- [x] 跨世界快览 v0
+  - 概览页已支持世界级快速浏览列表（书数 / 实体数 / 关系数）
+  - 支持一键切换到目标世界并自动进入概览工作态
+  - 当前世界以“当前”标签标记，避免误操作重复切换
 
 ---
 
 ## P2：AI 能力
 
-- [ ] AI 总结 / 扩写
-  - 对捕获内容或实体描述进行摘要与扩写
+- [x] AI 总结 / 扩写 v0
+  - 实体编辑器已支持 `AI 总结 / AI 扩写` 快捷按钮
+  - 已接入 Free/Pro 门禁（Pro 可用）
+  - 后台已落地 `AI_ENTITY_ASSIST` 协议（本地启发式实现）
 
-- [ ] AI 查重 / 冲突提醒
-  - 对新设定和旧设定做语义冲突检测
+- [ ] AI 总结 / 扩写 v1（模型化）
+  - 对接云端模型生成与质量策略（替换本地启发式）
 
-- [ ] 书稿自动解析
-  - 在用户授权前提下，从书稿中识别实体与书级使用关系
+- [x] AI 查重 / 冲突提醒 v0
+  - 实体编辑器已支持 `AI 查重` 手动触发
+  - 已接入 Free/Pro 门禁（Pro 可用）
+  - 返回潜在冲突列表（同名 / 高相似 / 类型冲突 / 生死状态冲突）
+
+- [ ] AI 查重 / 冲突提醒 v1（语义化）
+  - 引入向量语义比对与可解释冲突规则库
+
+- [x] 书稿自动解析 v0
+  - 实体页已支持粘贴书稿片段并提取候选实体
+  - 已支持候选实体一键回填到实体编辑器
+  - 已接入 Free/Pro 门禁（Pro 可用）
+
+- [ ] 书稿自动解析 v1（关系推断）
+  - 提取实体间关系并自动生成书级关系边
 
 ---
 
 ## P3：更远期能力
 
-- [ ] 时间轴视图
-  - 人物 / 势力状态变化
+- [x] 时间轴视图 v0
+  - 概览页已支持实体更新 + 捕获记录合并时间轴
+  - 支持按时间倒序查看最近事件
+
+- [ ] 时间轴视图 v1（状态演化）
+  - 人物 / 势力状态变化（按关系与规则事件演进）
 
 - [ ] 生图能力
   - 为人物 / 地点 / 物品生成代表图
@@ -273,6 +421,6 @@
 ## 当前设计债务
 
 - [ ] Sidepanel 仍有局部样式不够统一的问题
-- [ ] 需要持续检查横向滚动与卡片间距
+- [ ] 需要持续检查横向滚动与卡片间距（320px–400px 尤其关注）
 - [ ] 需要逐步减少页面中的 emoji 式图标表达
 - [ ] 需要把组件职责继续从 `App.jsx` 往外拆

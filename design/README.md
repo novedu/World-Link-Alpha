@@ -8,12 +8,15 @@
   UX 结构、信息架构、关键交互流程
 - `design/ui-design-spec.md`  
   UI 视觉规范、组件规则、响应式与状态表现
+- `design/style-decision-v1.md`
+  风格决策基线（Sidepanel + Web）与 token 落地策略
 
 ## 使用约定
 
 1. 页面结构或交互流程变更，先更新 `ux-spec.md`。  
 2. 视觉 token、样式规则、组件外观变更，更新 `ui-design-spec.md`。  
-3. 旧版本 UI 草案不保留在仓库；确认废弃后直接删除。  
+3. 风格方向发生变化，先更新 `style-decision-v1.md`，再修改 UI 规范与代码。  
+4. 旧版本 UI 草案不保留在仓库；确认废弃后直接删除。  
 
 ## 设计源信息维护约定（新增）
 

@@ -38,7 +38,7 @@ const contentSentinels = {
   'design/ux-spec.md': '# UX Spec: World-Link Alpha',
   'prd/World-Link-Alpha-PRD-overview.md': '# World-Link Alpha PRD'
 }
-const ignoreDirs = new Set(['node_modules', '.git', 'dist', 'build'])
+const ignoreDirs = new Set(['node_modules', '.git', 'dist', 'build', '.claude', '.codex'])
 const allowedReferenceFiles = new Set(['prd/TODO.md'])
 
 function walkFiles(dir, ext = '.md') {

@@ -22,7 +22,7 @@ export const CAPTURE_STATUS_OPTIONS = [
   { value: 'all', label: '全部状态' },
   { value: CAPTURE_STATUS.INBOX, label: '未整理' },
   { value: CAPTURE_STATUS.ORGANIZED, label: '已整理' },
-  { value: CAPTURE_STATUS.CONVERTED, label: '已转实体' }
+  { value: CAPTURE_STATUS.CONVERTED, label: '已转设定' }
 ];
 
 export const CAPTURE_TIME_FILTER_OPTIONS = [
@@ -32,12 +32,29 @@ export const CAPTURE_TIME_FILTER_OPTIONS = [
   { value: '30d', label: '最近 30 天' }
 ];
 
+export const ENTITY_RELATION_OPTIONS = [
+  { value: 'belongs_to', label: '所属' },
+  { value: 'hostile_to', label: '敌对' },
+  { value: 'kinship', label: '亲属' },
+  { value: 'uses', label: '使用' },
+  { value: 'originates_from', label: '起源于' },
+  { value: 'related_to', label: '关联' }
+];
+
+export const ENTITY_RELATION_LABELS = ENTITY_RELATION_OPTIONS.reduce((acc, item) => {
+  acc[item.value] = item.label;
+  return acc;
+}, {});
+
 export const MESSAGE_TYPES = {
   OPEN_CAPTURE_PANEL: 'OPEN_CAPTURE_PANEL',
   SAVE_ENTITY: 'SAVE_ENTITY',
   CREATE_WORLD: 'CREATE_WORLD',
   CREATE_BOOK: 'CREATE_BOOK',
   SAVE_ENTITY_FROM_SIDEPANEL: 'SAVE_ENTITY_FROM_SIDEPANEL',
+  AI_ENTITY_ASSIST: 'AI_ENTITY_ASSIST',
+  CHECK_ENTITY_CONFLICT: 'CHECK_ENTITY_CONFLICT',
+  PARSE_MANUSCRIPT: 'PARSE_MANUSCRIPT',
   UPDATE_CAPTURE_STATUS: 'UPDATE_CAPTURE_STATUS',
   REQUEST_EXPORT: 'REQUEST_EXPORT',
   MIGRATE_LOCAL_TO_CLOUD: 'MIGRATE_LOCAL_TO_CLOUD',

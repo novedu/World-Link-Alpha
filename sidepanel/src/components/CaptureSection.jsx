@@ -34,7 +34,7 @@ function getDomain(url) {
 
 function getCaptureStatusLabel(status) {
   if (status === CAPTURE_STATUS.ORGANIZED) return '已整理';
-  if (status === CAPTURE_STATUS.CONVERTED) return '已转实体';
+  if (status === CAPTURE_STATUS.CONVERTED) return '已转设定';
   return '未整理';
 }
 
@@ -65,7 +65,9 @@ function CaptureSection({
   onCaptureTimeFilterChange,
   onClearCaptureFilters,
   onMarkCaptureStatus,
-  onCreateFromCapture
+  onCreateFromCapture,
+  onGoToEntityTab,
+  totalCaptureCount
 }) {
   const hasActiveFilters =
     captureStatusFilter !== 'all' || captureSourceFilter !== 'all' || captureTimeFilter !== 'all';
@@ -130,16 +132,6 @@ function CaptureSection({
                     ? 'capture-card-active'
                     : ''
                 }`}
-                style={{
-                  borderColor:
-                    highlightedCaptureId === item.text || highlightedCaptureId === '__refresh_all__'
-                      ? 'var(--primary)'
-                      : 'var(--border-default)',
-                  backgroundColor:
-                    highlightedCaptureId === item.text || highlightedCaptureId === '__refresh_all__'
-                      ? 'var(--primary-soft)'
-                      : 'var(--bg-card)'
-                }}
               >
                 <div className="capture-card-inner">
                   <div className="capture-card-content">
@@ -165,7 +157,7 @@ function CaptureSection({
                     ) : null}
 
                     <div className="capture-card-footer">
-                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <p className="capture-time-label">
                         {formatTimestamp(item.timestamp)}
                       </p>
                       <div className="capture-card-actions">
@@ -186,7 +178,7 @@ function CaptureSection({
                           标记已整理
                         </button>
                         <button type="button" onClick={() => onCreateFromCapture(item)} className="btn-primary btn-mini">
-                          从此创建实体
+                          转成设定
                         </button>
                       </div>
                     </div>
@@ -197,12 +189,32 @@ function CaptureSection({
           })
         ) : (
           <div className="empty-state">
-            <p className="text-sm text-center">在网页选择文字后，右键点击“存入 World-Link”开始捕获。</p>
+            {hasActiveFilters && totalCaptureCount > 0 ? (
+              <>
+                <p className="empty-state-title">筛选后暂无结果</p>
+                <p className="empty-state-desc">当前筛选条件下没有灵感记录，试试清空筛选。</p>
+                <div className="empty-state-actions">
+                  <button type="button" className="btn-secondary btn-mini" onClick={onClearCaptureFilters}>
+                    清空筛选
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="empty-state-title">还没有灵感记录</p>
+                <p className="empty-state-desc">在网页选中文字后，右键点击“存入 World-Link”即可开始收集灵感。</p>
+                <div className="empty-state-actions">
+                  <button type="button" className="btn-secondary btn-mini" onClick={onGoToEntityTab}>
+                    去设定库手动新建
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
 
-      {capturedList.length > 0 ? <p className="helper-text text-center">共捕获 {capturedList.length} 条文字</p> : null}
+      {capturedList.length > 0 ? <p className="helper-text text-center">共收集 {capturedList.length} 条灵感</p> : null}
     </div>
   );
 }

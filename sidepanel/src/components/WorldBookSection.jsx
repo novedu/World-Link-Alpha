@@ -13,13 +13,13 @@ function WorldBookSection({
     <div className="section-body">
       <div className="field-stack">
         <div className="field-header">
-          <label className="field-label">世界</label>
+          <label className="field-label">世界观库</label>
           <button
             type="button"
             onClick={onAddWorld}
             className="btn-inline btn-inline-primary"
           >
-            + 新世界
+            + 新建世界观
           </button>
         </div>
         <div className="field-controls">
@@ -28,7 +28,7 @@ function WorldBookSection({
             value={selectedWorldId}
             onChange={(e) => onSelectWorld(e.target.value)}
           >
-            <option value="">选择世界...</option>
+            <option value="">选择世界观库...</option>
             {worlds.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}
@@ -40,14 +40,14 @@ function WorldBookSection({
 
       <div className="field-stack">
         <div className="field-header">
-          <label className="field-label">书项目</label>
+          <label className="field-label">当前作品</label>
           <button
             type="button"
             onClick={onAddBook}
             className="btn-inline btn-inline-secondary"
             disabled={!selectedWorldId}
           >
-            + 新书
+            + 新建作品
           </button>
         </div>
         <div className="field-controls">
@@ -57,7 +57,7 @@ function WorldBookSection({
             onChange={(e) => onSelectBook(e.target.value)}
             disabled={!selectedWorldId}
           >
-            <option value="">全部书 / 未指定</option>
+            <option value="">全部作品 / 未指定</option>
             {booksInWorld.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.title}
@@ -69,10 +69,14 @@ function WorldBookSection({
 
       {currentWorld && (
         <p className="helper-text">
-          当前世界：<span className="font-medium" style={{ color: 'var(--primary)' }}>{currentWorld.name}</span>
-          {selectedBookId && ' · 仅显示本书已使用的实体'}
+          当前世界观库：<span className="helper-primary-text">{currentWorld.name}</span>
+          {selectedBookId && ' · 仅显示当前作品已使用的设定'}
         </p>
       )}
+
+      <p className="terms-hint">
+        术语说明：设定 = 人物/地点/势力等条目；灵感 = 网页划词收集；当前作品 = 你正在写的这本书。
+      </p>
     </div>
   );
 }

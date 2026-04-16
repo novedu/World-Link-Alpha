@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "check:docs": "node ../scripts/check-docs-consistency.mjs"
-  },,
+  },
   "dependencies": {
     "daisyui": "^5.5.19",
     "react": "^19.2.4",

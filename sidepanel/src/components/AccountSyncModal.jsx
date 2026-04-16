@@ -54,7 +54,7 @@ function AccountSyncModal({
 
           <div className="summary-grid">
             <div className="summary-item">
-              <div className="summary-item-label">今日捕获额度</div>
+              <div className="summary-item-label">今日灵感收集额度</div>
               <div className="summary-item-value">{captureQuotaLabel}</div>
             </div>
             <div className="summary-item">

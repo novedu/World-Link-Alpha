@@ -16,6 +16,8 @@
   前端工程规范、模块化边界与 PR 自检清单
 - `prd/plugin-to-web-migration.md`  
   插件形态升级到网页形态的分阶段迁移方案（架构、风险、验收）
+- `prd/readany-overlap-analysis.md`
+  ReadAny 能力重叠分析与差异化定位建议
 
 ## 文档治理规则
 
@@ -42,4 +44,3 @@
 ## 提交前检查
 
 - 运行：`node scripts/check-docs-consistency.mjs`
-

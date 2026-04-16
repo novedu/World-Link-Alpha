@@ -1,7 +1,7 @@
 const TAB_ITEMS = [
-  { id: 'entities', label: '实体' },
-  { id: 'captures', label: '捕获' },
-  { id: 'overview', label: '概览' }
+  { id: 'entities', label: '设定库' },
+  { id: 'captures', label: '灵感箱' },
+  { id: 'overview', label: '总览' }
 ];
 
 function PrimaryTabBar({ activeTab, onTabChange, captureCount }) {

@@ -1,5 +1,7 @@
 # 前端架构与消息交互（当前版本）
 
+> 术语口径：本文保留技术命名（如 `Entity`），但用户界面文案统一为“设定 / 当前作品 / 灵感记录”。
+
 ## 1. 架构结论
 
 World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层**：
@@ -34,6 +36,7 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
   - `books`
   - `entities`
   - `bookEntityUsages`
+  - `entityRelations`
   - `capturedList`
 
 ### `content.js`
@@ -43,9 +46,10 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 - 页面级成功/错误 toast
 
 ### `sidepanel/src/App.jsx`
-- 读取并监听 storage 变化
-- 维护全局上下文（世界 / 书）
+- 作为页面编排容器，组合各业务 hooks
+- 维护全局上下文（世界 / 书）与主 Tab
 - 维护实体/捕获/概览三大任务视图
+- 在概览态计算 `worldQuickRows`（按关系/实体/书数量排序）并提供跨世界快速跳转动作
 - 维护账号与套餐上下文（登录/退出、配额展示）
 - 用户侧收敛为“登录即同步”，技术运行配置不直接暴露
 - 所有写入通过 `services/runtimeApi.sendRuntimeMessage` 交给 background
@@ -60,7 +64,38 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 
 ### `sidepanel/src/hooks/*`
 - `useEntityFilters`：世界/书上下文下的实体过滤、标签选项、分布统计
+  - 关系维度扩展：
+    - 当前上下文：`relationsInContext`、`relationCount`
+    - 世界口径：`worldRelationRows`
+    - 书项目口径：`bookRelationRows`
+    - 书项目映射：`bookRelationRowsByBookId`
+    - 图谱渲染：`relationGraphEdges`
 - `useCaptureFilters`：捕获列表过滤与来源选项生成
+- `useRuntimeContext`：账号会话、套餐同步、运行时配置与刷新动作
+- `useActionDialogFlow`：创建世界/创建书/登录/迁移等弹窗流程
+- `useEntityEditorFlow`：实体编辑器状态、字段更新、保存提交流程
+  - AI 扩展：`AI_ENTITY_ASSIST` 调用、处理中状态、summary 回填
+  - 冲突检测：`CHECK_ENTITY_CONFLICT` 调用、结果回填与提示展示
+- `App.jsx`：实体页承接书稿解析 v0（粘贴文本、触发解析、候选回填）
+- `useCaptureInboxFlow`：捕获转实体与捕获状态流转
+- `useStorageSync`：storage 初始化加载、变更监听、捕获高亮提醒
+- `useExportFlow`：导出鉴权、文件生成下载、导出后配额刷新
+- `useOverviewStats`：概览统计卡片的数据组装
+- `useAccountViewModel`：账号展示文案、套餐与配额展示字段收敛
+- `useUiMessage`：全局提示消息显示/自动消失/关闭动作收敛
+- `useSelectionState`：世界/书选择状态与切换动作收敛
+- `useWorldBookMeta`：世界/书统计文案组装（Header 显示口径统一）
+- `useWorldBookSelectionHandlers`：世界/书切换联动重置（编辑态与筛选态）收敛
+
+### `sidepanel/src/components/*`
+- `InlineMessage`：全局提示条渲染与关闭交互
+- `RelationGraphPreviewCard`：概览页关系图谱交互预览（缩放/拖拽/节点高亮）
+  - 支持世界图谱 / 本书图谱切换
+  - 支持书图谱目标书下拉选择（不改全局上下文）
+  - 内置力导向布局迭代，降低节点重叠
+- `WorldSummaryCard`：概览页聚合卡片
+  - 跨世界快览 v1（世界摘要 + 搜索/排序 + 一键跳转）
+  - 时间轴 v0（实体更新 + 捕获记录）
 
 ### `sidepanel/src/services/*`
 - `runtimeApi`：消息发送、错误格式化、运行时上下文归一化
@@ -149,10 +184,60 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
       type: string,
       summary: string,
       tags: string[],
+      relations?: Array<{
+        id?: string,
+        toEntityId: string,
+        type: 'belongs_to' | 'hostile_to' | 'kinship' | 'uses' | 'originates_from' | 'related_to',
+        note?: string
+      }>,
       sourceUrl?: string,
       sourceTitle?: string,
       usedInCurrentBook?: boolean
     }
+  }
+}
+```
+
+### `AI_ENTITY_ASSIST`
+
+```js
+{
+  type: 'AI_ENTITY_ASSIST',
+  data: {
+    mode: 'summarize' | 'expand',
+    text: string,
+    entityId?: string,
+    worldId?: string
+  }
+}
+```
+
+### `CHECK_ENTITY_CONFLICT`
+
+```js
+{
+  type: 'CHECK_ENTITY_CONFLICT',
+  data: {
+    worldId: string,
+    draftEntity: {
+      id?: string,
+      name: string,
+      type?: string,
+      summary?: string
+    }
+  }
+}
+```
+
+### `PARSE_MANUSCRIPT`
+
+```js
+{
+  type: 'PARSE_MANUSCRIPT',
+  data: {
+    worldId: string,
+    bookId?: string,
+    text: string
   }
 }
 ```
@@ -294,7 +379,19 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 
 > 说明：`traceId` 用于联调排障，Sidepanel 可在提示文案里透传。
 
-## 3.5 服务端 API 契约最小集（新增）
+## 3.6 运行配置归一化约束（新增）
+
+`SET_RUNTIME_CONFIG`、`GET_RUNTIME_CONTEXT` 相关链路统一使用同一套归一化口径：
+
+- `repositoryMode`：仅允许 `local | cloud`，其余值回退到可用模式
+- `cloudApiBaseUrl`：统一 `trim` 并去除尾部斜杠
+- `cloudTimeoutMs`：统一裁剪到 `3000 ~ 60000`（毫秒）
+
+> 说明：Sidepanel 入口链路不再注入 `mock://local` 默认回填，避免隐藏配置问题。
+
+---
+
+## 3.7 服务端 API 契约最小集（新增）
 
 ### `POST /v1/auth/login`
 

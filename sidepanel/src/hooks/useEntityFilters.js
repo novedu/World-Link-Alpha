@@ -1,10 +1,60 @@
 import { useMemo } from 'react';
 
+function buildRelationRows(relations, relationLabels, entityNameById, previewLimit = 10, graphLimit = 48) {
+  const scopedRelations = Array.isArray(relations) ? relations : [];
+  const typeCounter = scopedRelations.reduce((acc, relation) => {
+    const type = relation.type || 'related_to';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  const typeRows = Object.entries(typeCounter)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => ({
+      type,
+      count,
+      label: relationLabels[type] || type
+    }));
+
+  const sortedRelations = [...scopedRelations].sort(
+    (a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0)
+  );
+
+  const previewRows = sortedRelations.slice(0, previewLimit).map((relation) => ({
+    ...relation,
+    fromName: entityNameById.get(relation.fromEntityId) || '未知实体',
+    toName: entityNameById.get(relation.toEntityId) || '未知实体',
+    typeLabel: relationLabels[relation.type] || relation.type || '关联'
+  }));
+
+  const graphEdges = sortedRelations.slice(0, graphLimit).map((relation) => ({
+    ...relation,
+    fromName: entityNameById.get(relation.fromEntityId) || '未知实体',
+    toName: entityNameById.get(relation.toEntityId) || '未知实体',
+    typeLabel: relationLabels[relation.type] || relation.type || '关联'
+  }));
+
+  return {
+    relationCount: scopedRelations.length,
+    relationTypeRows: typeRows,
+    relationPreviewRows: previewRows,
+    relationGraphEdges: graphEdges
+  };
+}
+
+const EMPTY_RELATION_ROWS = {
+  relationCount: 0,
+  relationTypeRows: [],
+  relationPreviewRows: [],
+  relationGraphEdges: []
+};
+
 export function useEntityFilters({
   worlds,
   books,
   entities,
   bookEntityUsages,
+  entityRelations,
   selectedWorldId,
   selectedBookId,
   entitySearchQuery,
@@ -12,6 +62,7 @@ export function useEntityFilters({
   entityTagFilter,
   baseTagOptions,
   typeLabels,
+  relationLabels,
   parseTags
 }) {
   const currentWorld = useMemo(
@@ -96,6 +147,66 @@ export function useEntityFilters({
     [entitiesInContext]
   );
 
+  const entityNameById = useMemo(() => {
+    const map = new Map();
+    entitiesInWorld.forEach((entity) => {
+      map.set(entity.id, entity.name || '未命名实体');
+    });
+    return map;
+  }, [entitiesInWorld]);
+
+  const relationsInWorld = useMemo(() => {
+    if (!selectedWorldId) return [];
+    return entityRelations.filter((relation) => relation.worldId === selectedWorldId);
+  }, [entityRelations, selectedWorldId]);
+
+  const relationsInBook = useMemo(() => {
+    if (!selectedBookId) return [];
+    return relationsInWorld.filter(
+      (relation) => entityIdsUsedInCurrentBook.has(relation.fromEntityId) && entityIdsUsedInCurrentBook.has(relation.toEntityId)
+    );
+  }, [relationsInWorld, selectedBookId, entityIdsUsedInCurrentBook]);
+
+  const worldRelationRows = useMemo(
+    () => buildRelationRows(relationsInWorld, relationLabels, entityNameById),
+    [relationsInWorld, relationLabels, entityNameById]
+  );
+  const bookRelationRows = useMemo(
+    () => buildRelationRows(relationsInBook, relationLabels, entityNameById),
+    [relationsInBook, relationLabels, entityNameById]
+  );
+
+  const relationsInContext = selectedBookId ? relationsInBook : relationsInWorld;
+  const relationTypeRows = selectedBookId ? bookRelationRows.relationTypeRows : worldRelationRows.relationTypeRows;
+  const relationPreviewRows = selectedBookId ? bookRelationRows.relationPreviewRows : worldRelationRows.relationPreviewRows;
+  const relationGraphEdges = selectedBookId ? bookRelationRows.relationGraphEdges : worldRelationRows.relationGraphEdges;
+  const relationCount = selectedBookId ? bookRelationRows.relationCount : worldRelationRows.relationCount;
+
+  const bookRelationRowsByBookId = useMemo(() => {
+    if (!selectedWorldId || booksInWorld.length === 0) return {};
+
+    const usageEntityIdsByBookId = {};
+    booksInWorld.forEach((book) => {
+      usageEntityIdsByBookId[book.id] = new Set();
+    });
+
+    bookEntityUsages.forEach((usage) => {
+      const set = usageEntityIdsByBookId[usage.bookId];
+      if (set) {
+        set.add(usage.entityId);
+      }
+    });
+
+    return booksInWorld.reduce((acc, book) => {
+      const targetIds = usageEntityIdsByBookId[book.id] || new Set();
+      const scopedRelations = relationsInWorld.filter(
+        (relation) => targetIds.has(relation.fromEntityId) && targetIds.has(relation.toEntityId)
+      );
+      acc[book.id] = buildRelationRows(scopedRelations, relationLabels, entityNameById);
+      return acc;
+    }, {});
+  }, [selectedWorldId, booksInWorld, bookEntityUsages, relationsInWorld, relationLabels, entityNameById]);
+
   return {
     currentWorld,
     currentBook,
@@ -107,6 +218,17 @@ export function useEntityFilters({
     normalizedQuery,
     entityIdsUsedInCurrentBook,
     distributionRows,
-    recentEntities
+    recentEntities,
+    relationsInContext,
+    relationsInWorld,
+    relationsInBook,
+    relationCount,
+    relationTypeRows,
+    relationPreviewRows,
+    relationGraphEdges,
+    worldRelationRows,
+    bookRelationRows,
+    bookRelationRowsByBookId,
+    emptyRelationRows: EMPTY_RELATION_ROWS
   };
 }

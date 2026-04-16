@@ -1,0 +1,36 @@
+:root {
+  /* Theme Source: StyleKit Decision v1 (Corporate Clean + Productivity SaaS) */
+  --theme-name: 'World-Link Theme V1';
+  --theme-style-primary: 'Corporate Clean';
+  --theme-style-secondary: 'Notion Readability';
+
+  /* Core Palette */
+  --bg-page: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-soft: #F1F5F9;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border-default: #E2E8F0;
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-soft: #EFF6FF;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  /* Extended tokens for Web version expansion */
+  --surface-raised: #FFFFFF;
+  --surface-muted: #F8FAFC;
+  --focus-ring: rgba(37, 99, 235, 0.25);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.10);
+
+  /* Typography */
+  font-family: "Plus Jakarta Sans", "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

@@ -7,14 +7,15 @@
 - 前端插件代码：`sidepanel/`、`content.js`、`background.js`
 - 产品文档：`prd/`、`design/`
 
-## 2. 当前基线（2026-04-15）
+## 2. 当前基线（2026-04-16）
 
-- `sidepanel/src/App.jsx`：约 `938` 行（仍超出可维护阈值）
+- `sidepanel/src/App.jsx`：约 `370` 行（已进入阈值范围）
 - 已完成拆分：
-  - 视图组件：`BrandHeader`、`AccountSyncModal`、`ActionDialog`、`EntitySection`、`CaptureSection`
+  - 视图组件：`BrandHeader`、`InlineMessage`、`AccountSyncModal`、`ActionDialog`、`EntitySection`、`CaptureSection`
   - 数据模块：`constants/worldLink.js`、`utils/*`、`hooks/useEntityFilters`、`hooks/useCaptureFilters`
+  - 流程模块：`hooks/useRuntimeContext`、`hooks/useActionDialogFlow`、`hooks/useEntityEditorFlow`、`hooks/useCaptureInboxFlow`、`hooks/useStorageSync`、`hooks/useExportFlow`、`hooks/useOverviewStats`、`hooks/useAccountViewModel`、`hooks/useUiMessage`、`hooks/useSelectionState`、`hooks/useWorldBookMeta`、`hooks/useWorldBookSelectionHandlers`
   - 服务模块：`services/runtimeApi.js`、`services/exportService.js`
-- 下一阶段目标：继续把账号/弹窗提交流程从 `App.jsx` 抽为 hooks
+- 下一阶段目标：继续保持 `App.jsx <= 400` 行，并把 lint 校验纳入提交门禁
 
 ## 3. 模块化硬约束
 
@@ -62,6 +63,8 @@ sidepanel/src
 ## 5. UI/UX 实现规范
 
 - 视觉规范唯一来源：`design/ui-design-spec.md`
+- 风格决策基线：`design/style-decision-v1.md`
+- 主题 token 文件：`sidepanel/src/styles/stylekit-theme-v1.css`
 - 交互规范唯一来源：`design/ux-spec.md`
 - Sidepanel 约束：
   - 宽度适配 `320–400px` 优先
@@ -112,8 +115,8 @@ sidepanel/src
 
 ## 9. 下阶段拆分计划（建议）
 
-1. `useRuntimeContext`：登录、套餐、同步状态收敛
-2. `useEntityFilters`：搜索/类型/标签/书过滤收敛
-3. `useCaptureFilters`：状态/来源/时间过滤收敛
-4. `runtimeApi`：`sendMessage` 与错误映射收敛
-5. `exportService`：JSON/Markdown 导出收敛
+1. `App.jsx` 仅保留路由式编排与回调绑定
+2. 实体区动作回调继续收敛（减少 App 内联函数）
+3. 组件层补齐无障碍与空态提示一致性
+4. 统一移除 `App.jsx` 中剩余内联回调
+5. 将 `npm run lint` 固化为提交流程门禁

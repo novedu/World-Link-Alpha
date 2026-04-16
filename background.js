@@ -2,7 +2,7 @@ function createId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const STORAGE_KEYS = ['capturedList', 'worlds', 'books', 'entities', 'bookEntityUsages'];
+const STORAGE_KEYS = ['capturedList', 'worlds', 'books', 'entities', 'bookEntityUsages', 'entityRelations'];
 const AUTH_SESSION_KEY = 'authSession';
 const ENTITLEMENTS_KEY = 'entitlements';
 const USAGE_METER_KEY = 'usageMeter';
@@ -14,6 +14,7 @@ const CAPTURE_STATUS = {
   CONVERTED: 'converted'
 };
 const CAPTURE_STATUS_VALUES = new Set(Object.values(CAPTURE_STATUS));
+const ENTITY_RELATION_TYPES = new Set(['belongs_to', 'hostile_to', 'kinship', 'uses', 'originates_from', 'related_to']);
 
 const USAGE_ACTION = {
   CAPTURE_CREATE: 'capture_create',
@@ -67,7 +68,8 @@ function normalizeStoreShape(data) {
     worlds: Array.isArray(data?.worlds) ? data.worlds : [],
     books: Array.isArray(data?.books) ? data.books : [],
     entities: Array.isArray(data?.entities) ? data.entities : [],
-    bookEntityUsages: Array.isArray(data?.bookEntityUsages) ? data.bookEntityUsages : []
+    bookEntityUsages: Array.isArray(data?.bookEntityUsages) ? data.bookEntityUsages : [],
+    entityRelations: Array.isArray(data?.entityRelations) ? data.entityRelations : []
   };
 }
 
@@ -103,6 +105,7 @@ function mergeStoreShape(target, incoming) {
     books: mergeUniqueByKey(base.books, patch.books, (item) => safeName(item?.id)),
     entities: mergeUniqueByKey(base.entities, patch.entities, (item) => safeName(item?.id)),
     bookEntityUsages: mergeUniqueByKey(base.bookEntityUsages, patch.bookEntityUsages, (item) => safeName(item?.id)),
+    entityRelations: mergeUniqueByKey(base.entityRelations, patch.entityRelations, (item) => safeName(item?.id)),
     capturedList: mergeUniqueByKey(
       base.capturedList,
       patch.capturedList,
@@ -120,6 +123,45 @@ function normalizeEntityRecordForStorage(entity) {
     ...entity,
     tags: normalizeTags(entity?.tags)
   };
+}
+
+function normalizeRelationType(value) {
+  const type = safeName(value).toLowerCase();
+  return ENTITY_RELATION_TYPES.has(type) ? type : 'related_to';
+}
+
+function normalizeEntityRelationsPayload(relations, context = {}) {
+  const worldId = safeName(context.worldId);
+  const fromEntityId = safeName(context.fromEntityId);
+  const validTargetEntityIds = context.validTargetEntityIds instanceof Set ? context.validTargetEntityIds : null;
+  if (!worldId || !fromEntityId || !Array.isArray(relations)) return [];
+
+  const now = Date.now();
+  const unique = [];
+  const seen = new Set();
+
+  relations.forEach((item) => {
+    const toEntityId = safeName(item?.toEntityId || item?.targetEntityId || item?.entityId);
+    if (!toEntityId || toEntityId === fromEntityId) return;
+    if (validTargetEntityIds && !validTargetEntityIds.has(toEntityId)) return;
+    const type = normalizeRelationType(item?.type);
+    const uniqueKey = `${type}::${toEntityId}`;
+    if (seen.has(uniqueKey)) return;
+    seen.add(uniqueKey);
+
+    unique.push({
+      id: safeName(item?.id) || createId('relation'),
+      worldId,
+      fromEntityId,
+      toEntityId,
+      type,
+      note: String(item?.note || '').trim(),
+      createdAt: Number(item?.createdAt || now),
+      updatedAt: now
+    });
+  });
+
+  return unique;
 }
 
 function normalizeCaptureRecordForStorage(item) {
@@ -1104,6 +1146,338 @@ async function authorizeExport(payload) {
   };
 }
 
+function normalizeAssistSourceText(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  return text.slice(0, 2000);
+}
+
+function summarizeTextHeuristically(text) {
+  const cleaned = normalizeAssistSourceText(text);
+  if (!cleaned) return '';
+  const sentenceParts = cleaned.split(/[。！？!?；;]+/).map((item) => item.trim()).filter(Boolean);
+  if (sentenceParts.length > 0) {
+    const first = sentenceParts[0];
+    if (first.length <= 96) {
+      return `${first}${first.endsWith('。') ? '' : '。'}`;
+    }
+    return `${first.slice(0, 96)}…`;
+  }
+  if (cleaned.length <= 96) return cleaned;
+  return `${cleaned.slice(0, 96)}…`;
+}
+
+function expandTextHeuristically(text) {
+  const cleaned = normalizeAssistSourceText(text);
+  if (!cleaned) return '';
+  const base = cleaned.length > 220 ? `${cleaned.slice(0, 220)}…` : cleaned;
+  return [
+    base,
+    '该设定在当前世界观中具备较高辨识度，可作为剧情推进与人物动机的关键线索。',
+    '建议补充其起源、限制条件与与其他实体的关系，以便后续图谱与冲突检测使用。'
+  ].join(' ');
+}
+
+async function assistEntityText(payload) {
+  const mode = payload?.mode === 'expand' ? 'expand' : 'summarize';
+  const sourceText = normalizeAssistSourceText(payload?.text);
+  if (!sourceText) {
+    return { success: false, error: '请先输入或选择需要处理的文本' };
+  }
+
+  const entitlements = await getEffectiveEntitlements();
+  if (!entitlements?.features?.aiSummary) {
+    return {
+      success: false,
+      error: 'AI 总结/扩写为 Pro 功能，请升级后使用'
+    };
+  }
+
+  const output = mode === 'expand' ? expandTextHeuristically(sourceText) : summarizeTextHeuristically(sourceText);
+  if (!output) {
+    return { success: false, error: 'AI 处理失败，请稍后再试' };
+  }
+
+  return {
+    success: true,
+    mode,
+    text: output,
+    provider: 'local-heuristic'
+  };
+}
+
+function normalizeCompareText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[，。！？、,.!?;；:："“”"'`~\-_/\\()[\]{}<>]/g, '');
+}
+
+function createBigramSet(text) {
+  const source = normalizeCompareText(text);
+  const output = new Set();
+  if (!source) return output;
+  if (source.length === 1) {
+    output.add(source);
+    return output;
+  }
+  for (let i = 0; i < source.length - 1; i += 1) {
+    output.add(source.slice(i, i + 2));
+  }
+  return output;
+}
+
+function calcSetSimilarity(setA, setB) {
+  if (!setA.size || !setB.size) return 0;
+  let intersection = 0;
+  setA.forEach((token) => {
+    if (setB.has(token)) intersection += 1;
+  });
+  const union = setA.size + setB.size - intersection;
+  if (!union) return 0;
+  return intersection / union;
+}
+
+function detectLifeStatusConflict(textA, textB) {
+  const a = normalizeCompareText(textA);
+  const b = normalizeCompareText(textB);
+  if (!a || !b) return false;
+  const deadWords = ['已死亡', '死亡', '身亡', '战死', '陨落', '亡故'];
+  const aliveWords = ['存活', '活着', '在世', '幸存', '未死'];
+  const aDead = deadWords.some((word) => a.includes(normalizeCompareText(word)));
+  const bDead = deadWords.some((word) => b.includes(normalizeCompareText(word)));
+  const aAlive = aliveWords.some((word) => a.includes(normalizeCompareText(word)));
+  const bAlive = aliveWords.some((word) => b.includes(normalizeCompareText(word)));
+  return (aDead && bAlive) || (aAlive && bDead);
+}
+
+function pickConflictReason(flags) {
+  if (flags.exactName && flags.typeMismatch) return '同名实体类型冲突';
+  if (flags.exactName) return '与现有实体同名';
+  if (flags.lifeConflict) return '设定状态可能冲突（生死状态不一致）';
+  if (flags.nameSimilar && flags.summarySimilar) return '名称与描述都高度相似';
+  if (flags.nameSimilar) return '名称高度相似';
+  if (flags.summarySimilar) return '描述高度相似';
+  return '存在潜在冲突';
+}
+
+async function checkEntityConflict(payload) {
+  const worldId = safeName(payload?.worldId);
+  const draft = payload?.draftEntity || {};
+  const draftName = safeName(draft?.name);
+  if (!worldId) return { success: false, error: '缺少 worldId' };
+  if (!draftName) return { success: false, error: '请先输入实体名称' };
+
+  const entitlements = await getEffectiveEntitlements();
+  if (!entitlements?.features?.conflictCheck) {
+    return {
+      success: false,
+      error: 'AI 查重/冲突提醒为 Pro 功能，请升级后使用'
+    };
+  }
+
+  const store = await readData();
+  const targetId = safeName(draft?.id);
+  const draftType = safeName(draft?.type || 'other');
+  const draftSummary = String(draft?.summary || '');
+  const normalizedName = normalizeCompareText(draftName);
+  const nameSet = createBigramSet(draftName);
+  const summarySet = createBigramSet(draftSummary);
+
+  const candidates = store.entities
+    .filter((entity) => safeName(entity.worldId) === worldId && safeName(entity.id) !== targetId)
+    .map((entity) => {
+      const entityName = safeName(entity.name);
+      const entitySummary = String(entity.summary || '');
+      const entityType = safeName(entity.type || 'other');
+
+      const normalizedEntityName = normalizeCompareText(entityName);
+      const nameSimilarity = calcSetSimilarity(nameSet, createBigramSet(entityName));
+      const summarySimilarity = calcSetSimilarity(summarySet, createBigramSet(entitySummary));
+      const exactName = Boolean(normalizedName) && normalizedName === normalizedEntityName;
+      const includeName =
+        normalizedName.length >= 2 &&
+        normalizedEntityName.length >= 2 &&
+        (normalizedEntityName.includes(normalizedName) || normalizedName.includes(normalizedEntityName));
+      const nameSimilar = exactName || nameSimilarity >= 0.72 || includeName;
+      const summarySimilar = summarySimilarity >= 0.62;
+      const typeMismatch = exactName && draftType && entityType && draftType !== entityType;
+      const lifeConflict = detectLifeStatusConflict(draftSummary, entitySummary);
+
+      const shouldKeep = nameSimilar || summarySimilar || typeMismatch || lifeConflict;
+      if (!shouldKeep) return null;
+
+      const confidence = Math.min(
+        0.99,
+        Math.max(
+          exactName ? 0.95 : 0,
+          typeMismatch ? 0.9 : 0,
+          lifeConflict ? 0.86 : 0,
+          nameSimilarity,
+          summarySimilarity
+        )
+      );
+
+      return {
+        entityId: entity.id,
+        name: entityName || '未命名实体',
+        type: entityType || 'other',
+        confidence: Number(confidence.toFixed(2)),
+        reason: pickConflictReason({
+          exactName,
+          typeMismatch,
+          lifeConflict,
+          nameSimilar,
+          summarySimilar
+        }),
+        signals: {
+          exactName,
+          typeMismatch,
+          lifeConflict,
+          nameSimilarity: Number(nameSimilarity.toFixed(2)),
+          summarySimilarity: Number(summarySimilarity.toFixed(2))
+        }
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 6);
+
+  return {
+    success: true,
+    conflicts: candidates,
+    hasConflict: candidates.length > 0
+  };
+}
+
+function inferEntityTypeFromToken(token) {
+  const value = String(token || '');
+  if (!value) return 'other';
+  if (/(城|镇|国|洲|大陆|山|谷|海|湖|林|宫|殿|塔|门|府)$/.test(value)) return 'location';
+  if (/(宗|门|会|盟|帮|团|派|教|阁|殿)$/.test(value)) return 'faction';
+  if (/(矿|矿石|晶|晶石|灵石|源石)$/.test(value)) return 'mineral';
+  if (/(剑|刀|枪|甲|丹|符|珠|卷|鼎|法器|神器)$/.test(value)) return 'item';
+  if (/(兽|龙|虎|鸟|蛇|灵|妖|魔)$/.test(value)) return 'creature';
+  if (/(法则|规则|禁忌|契约|天道)$/.test(value)) return 'law';
+  if (/(之战|事件|浩劫|纪元|大会|暴动)$/.test(value)) return 'event';
+  return 'character';
+}
+
+function extractContextSummary(text, token) {
+  const source = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!source || !token) return '';
+  const sentences = source.split(/[。！？!?；;]+/).map((item) => item.trim()).filter(Boolean);
+  const hit = sentences.find((sentence) => sentence.includes(token));
+  if (!hit) return '';
+  if (hit.length <= 96) return `${hit}${hit.endsWith('。') ? '' : '。'}`;
+  return `${hit.slice(0, 96)}…`;
+}
+
+function extractManuscriptSuggestions(text) {
+  const rawText = String(text || '').replace(/\r/g, '\n');
+  const normalizedText = rawText.replace(/\s+/g, ' ').trim().slice(0, 30000);
+  if (!normalizedText) return [];
+
+  const stopwords = new Set([
+    '我们',
+    '你们',
+    '他们',
+    '这个',
+    '那个',
+    '一种',
+    '已经',
+    '没有',
+    '不是',
+    '如果',
+    '但是',
+    '于是',
+    '然后',
+    '因为',
+    '所以',
+    '其中',
+    '并且',
+    '以及',
+    '可以',
+    '自己',
+    '现在',
+    '时候',
+    '感觉',
+    '世界',
+    '故事',
+    '角色'
+  ]);
+
+  const tokenStats = {};
+  const quotedTokenBonus = new Set();
+  const quotedMatches = normalizedText.matchAll(/《([^》]{2,20})》|“([^”]{2,20})”/g);
+  for (const match of quotedMatches) {
+    const token = safeName(match[1] || match[2]);
+    if (!token) continue;
+    quotedTokenBonus.add(token);
+    tokenStats[token] = tokenStats[token] || { count: 0 };
+    tokenStats[token].count += 2;
+  }
+
+  const tokenMatches = normalizedText.match(/[\u4e00-\u9fa5]{2,8}/g) || [];
+  tokenMatches.forEach((token) => {
+    const normalizedToken = safeName(token);
+    if (!normalizedToken) return;
+    if (stopwords.has(normalizedToken)) return;
+    if (/^[一二三四五六七八九十百千万上下左右前后中内外大小多少新老真很又就都与及其并和而但则被向为从于了呢啊呀吗吧吗哇哦]/.test(normalizedToken)) {
+      return;
+    }
+    tokenStats[normalizedToken] = tokenStats[normalizedToken] || { count: 0 };
+    tokenStats[normalizedToken].count += 1;
+  });
+
+  return Object.entries(tokenStats)
+    .filter(([, stat]) => stat.count >= 2)
+    .map(([token, stat]) => {
+      const type = inferEntityTypeFromToken(token);
+      const summary = extractContextSummary(normalizedText, token);
+      const confidenceBase = 0.36 + Math.min(stat.count, 8) * 0.07 + (quotedTokenBonus.has(token) ? 0.12 : 0);
+      return {
+        name: token,
+        type,
+        summary,
+        frequency: stat.count,
+        confidence: Number(Math.min(0.98, confidenceBase).toFixed(2)),
+        tags: quotedTokenBonus.has(token) ? ['书稿提取', '引号实体'] : ['书稿提取']
+      };
+    })
+    .sort((a, b) => b.confidence - a.confidence || b.frequency - a.frequency || a.name.localeCompare(b.name, 'zh-Hans-CN'))
+    .slice(0, 24);
+}
+
+async function parseManuscript(payload) {
+  const worldId = safeName(payload?.worldId);
+  if (!worldId) {
+    return { success: false, error: '缺少 worldId' };
+  }
+
+  const sourceText = String(payload?.text || '').trim();
+  if (!sourceText) {
+    return { success: false, error: '请先粘贴书稿内容' };
+  }
+
+  const entitlements = await getEffectiveEntitlements();
+  if (!entitlements?.features?.aiSummary) {
+    return {
+      success: false,
+      error: '书稿自动解析为 Pro 功能，请升级后使用'
+    };
+  }
+
+  const suggestions = extractManuscriptSuggestions(sourceText);
+  return {
+    success: true,
+    worldId,
+    bookId: safeName(payload?.bookId),
+    suggestions,
+    count: suggestions.length
+  };
+}
+
 async function migrateLocalDataToCloud(payload = {}) {
   await ensureRuntimeReady();
   if (dataRepository.mode !== 'cloud') {
@@ -1122,7 +1496,8 @@ async function migrateLocalDataToCloud(payload = {}) {
     books: localStore.books.length,
     entities: localStore.entities.length,
     captures: localStore.capturedList.length,
-    usages: localStore.bookEntityUsages.length
+    usages: localStore.bookEntityUsages.length,
+    relations: localStore.entityRelations.length
   };
   const totalCount = Object.values(stats).reduce((sum, current) => sum + current, 0);
   if (totalCount === 0) {
@@ -1160,7 +1535,8 @@ async function migrateLocalDataToCloud(payload = {}) {
       worlds: [],
       books: [],
       entities: [],
-      bookEntityUsages: []
+      bookEntityUsages: [],
+      entityRelations: []
     });
   }
 
@@ -1517,14 +1893,48 @@ async function saveEntityFromSidepanel(payload) {
     }
   }
 
+  let entityRelations = store.entityRelations;
+  if (Array.isArray(input.relations)) {
+    const validTargetEntityIds = new Set(
+      store.entities
+        .filter((item) => safeName(item.worldId) === entity.worldId)
+        .map((item) => safeName(item.id))
+        .filter(Boolean)
+    );
+    validTargetEntityIds.add(entity.id);
+
+    const normalizedRelations = normalizeEntityRelationsPayload(input.relations, {
+      worldId: entity.worldId,
+      fromEntityId: entity.id,
+      validTargetEntityIds
+    });
+
+    entityRelations = [
+      ...normalizedRelations,
+      ...store.entityRelations.filter((relation) => {
+        return !(
+          safeName(relation?.worldId) === entity.worldId &&
+          safeName(relation?.fromEntityId) === entity.id
+        );
+      })
+    ];
+  }
+
   await writeData({
     entities: store.entities,
-    bookEntityUsages: store.bookEntityUsages
+    bookEntityUsages: store.bookEntityUsages,
+    entityRelations
   });
 
   await markCaptureConvertedByText(entity.selectedText);
 
-  return { success: true, entity };
+  return {
+    success: true,
+    entity,
+    relations: entityRelations.filter(
+      (relation) => safeName(relation?.worldId) === entity.worldId && safeName(relation?.fromEntityId) === entity.id
+    )
+  };
 }
 
 async function getWorldsAndBooks() {
@@ -1608,6 +2018,20 @@ function validateSaveEntityFromSidepanelPayload(payload) {
     return createValidationResult('SAVE_ENTITY_FROM_SIDEPANEL.entity 缺少 name');
   }
 
+  if (payload.entity.relations !== undefined && !Array.isArray(payload.entity.relations)) {
+    return createValidationResult('SAVE_ENTITY_FROM_SIDEPANEL.entity.relations 必须是数组');
+  }
+
+  if (Array.isArray(payload.entity.relations)) {
+    const hasInvalidRelation = payload.entity.relations.some((relation) => {
+      if (!isPlainObject(relation)) return true;
+      return !safeName(relation.toEntityId || relation.targetEntityId || relation.entityId);
+    });
+    if (hasInvalidRelation) {
+      return createValidationResult('SAVE_ENTITY_FROM_SIDEPANEL.entity.relations 包含非法关系项');
+    }
+  }
+
   if (payload.selectedBookId !== undefined && typeof payload.selectedBookId !== 'string') {
     return createValidationResult('SAVE_ENTITY_FROM_SIDEPANEL.selectedBookId 必须是字符串');
   }
@@ -1688,6 +2112,73 @@ function validateRequestExportPayload(payload) {
   const format = safeName(payload.format).toLowerCase();
   if (format !== 'json' && format !== 'markdown') {
     return createValidationResult('REQUEST_EXPORT.format 非法');
+  }
+
+  return null;
+}
+
+function validateAiEntityAssistPayload(payload) {
+  if (!isPlainObject(payload)) {
+    return createValidationResult('AI_ENTITY_ASSIST 参数必须是对象');
+  }
+
+  const mode = safeName(payload.mode).toLowerCase();
+  if (mode !== 'summarize' && mode !== 'expand') {
+    return createValidationResult('AI_ENTITY_ASSIST.mode 非法');
+  }
+
+  const text = safeName(payload.text);
+  if (!text) {
+    return createValidationResult('AI_ENTITY_ASSIST.text 不能为空');
+  }
+
+  if (text.length > 6000) {
+    return createValidationResult('AI_ENTITY_ASSIST.text 过长');
+  }
+
+  return null;
+}
+
+function validateCheckEntityConflictPayload(payload) {
+  if (!isPlainObject(payload)) {
+    return createValidationResult('CHECK_ENTITY_CONFLICT 参数必须是对象');
+  }
+
+  if (!safeName(payload.worldId)) {
+    return createValidationResult('CHECK_ENTITY_CONFLICT 缺少 worldId');
+  }
+
+  if (!isPlainObject(payload.draftEntity)) {
+    return createValidationResult('CHECK_ENTITY_CONFLICT 缺少 draftEntity');
+  }
+
+  if (!safeName(payload.draftEntity.name)) {
+    return createValidationResult('CHECK_ENTITY_CONFLICT.draftEntity.name 不能为空');
+  }
+
+  return null;
+}
+
+function validateParseManuscriptPayload(payload) {
+  if (!isPlainObject(payload)) {
+    return createValidationResult('PARSE_MANUSCRIPT 参数必须是对象');
+  }
+
+  if (!safeName(payload.worldId)) {
+    return createValidationResult('PARSE_MANUSCRIPT 缺少 worldId');
+  }
+
+  const text = String(payload.text || '').trim();
+  if (!text) {
+    return createValidationResult('PARSE_MANUSCRIPT.text 不能为空');
+  }
+
+  if (text.length > 120000) {
+    return createValidationResult('PARSE_MANUSCRIPT.text 过长');
+  }
+
+  if (payload.bookId !== undefined && typeof payload.bookId !== 'string') {
+    return createValidationResult('PARSE_MANUSCRIPT.bookId 必须是字符串');
   }
 
   return null;
@@ -1823,6 +2314,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
     withResponse(() => authorizeExport(message?.data), sendResponse);
+    return true;
+  }
+
+  if (type === 'AI_ENTITY_ASSIST') {
+    const validationError = validateAiEntityAssistPayload(message?.data);
+    if (validationError) {
+      sendResponse(validationError);
+      return true;
+    }
+    withResponse(() => assistEntityText(message?.data), sendResponse);
+    return true;
+  }
+
+  if (type === 'CHECK_ENTITY_CONFLICT') {
+    const validationError = validateCheckEntityConflictPayload(message?.data);
+    if (validationError) {
+      sendResponse(validationError);
+      return true;
+    }
+    withResponse(() => checkEntityConflict(message?.data), sendResponse);
+    return true;
+  }
+
+  if (type === 'PARSE_MANUSCRIPT') {
+    const validationError = validateParseManuscriptPayload(message?.data);
+    if (validationError) {
+      sendResponse(validationError);
+      return true;
+    }
+    withResponse(() => parseManuscript(message?.data), sendResponse);
     return true;
   }
 
