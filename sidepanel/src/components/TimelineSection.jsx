@@ -167,7 +167,7 @@ function TimelineSection({
     return { valid: true };
   };
 
-  const handleApplyRelation = (mode = 'append') => {
+  const handleApplyRelation = () => {
     if (!currentEntity || !onChangeField) return;
 
     const validation = validateRelation(relationDraft.targetEntityId, relationDraft.relationType);
@@ -303,7 +303,7 @@ function TimelineSection({
               <button
                 type="button"
                 className="btn-primary"
-                onClick={() => handleApplyRelation('append')}
+                onClick={handleApplyRelation}
               >
                 一键添加关系
               </button>
