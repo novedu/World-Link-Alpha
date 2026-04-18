@@ -61,6 +61,36 @@ function App() {
   const { uiMessage, showUiMessage, clearUiMessage } = useUiMessage();
   const { capturedList, worlds, books, entities, bookEntityUsages, entityRelations, highlightedCaptureId, loading, error } = useStorageSync({ setSelectedWorldId });
 
+  // 计算订阅状态
+  const subscriptionStatus = useMemo(() => {
+    if (!authSession || !authSession.subscriptionExpiresAt) {
+      return null;
+    }
+    
+    const now = Date.now();
+    const expiresAt = authSession.subscriptionExpiresAt;
+    const daysUntilExpiry = Math.floor((expiresAt - now) / (24 * 60 * 60 * 1000));
+    
+    if (expiresAt < now) {
+      return {
+        status: 'expired',
+        message: 'Pro 订阅已过期'
+      };
+    } else if (daysUntilExpiry <= 7) {
+      return {
+        status: 'warning',
+        message: `Pro 订阅将在 ${daysUntilExpiry} 天后过期`
+      };
+    } else if (daysUntilExpiry <= 30) {
+      return {
+        status: 'info',
+        message: `Pro 订阅将在 ${daysUntilExpiry} 天后过期`
+      };
+    }
+    
+    return null;
+  }, [authSession]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -98,10 +128,34 @@ function App() {
       }
     };
 
+    // 监听认证状态变化
+    const handleAuthStatusChanged = (message) => {
+      if (message.type === 'AUTH_STATUS_CHANGED') {
+        const { type, message: statusMessage } = message.data;
+        switch (type) {
+          case 'auth_expired':
+            showUiMessage(statusMessage, 'warning');
+            setIsAccountModalOpen(true);
+            break;
+          case 'subscription_expired':
+            showUiMessage(statusMessage, 'info');
+            break;
+          case 'session_expired':
+            showUiMessage(statusMessage, 'info');
+            setIsAccountModalOpen(true);
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
     chrome.runtime.onMessage.addListener(handleAuthExpired);
+    chrome.runtime.onMessage.addListener(handleAuthStatusChanged);
 
     return () => {
       chrome.runtime.onMessage.removeListener(handleAuthExpired);
+      chrome.runtime.onMessage.removeListener(handleAuthStatusChanged);
     };
   }, [showUiMessage]);
 
@@ -360,6 +414,7 @@ function App() {
         <BrandHeader
           accountDisplayName={accountDisplayName}
           accountTriggerStatus={accountTriggerStatus}
+          subscriptionStatus={subscriptionStatus}
           onOpenAccount={openAccountModal}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}

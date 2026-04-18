@@ -411,6 +411,8 @@ function normalizeAuthSessionPayload(payload, fallbackSession = null) {
   const plan = payload?.plan === 'pro' ? 'pro' : fallbackSession?.plan === 'pro' ? 'pro' : 'free';
   const expiresAtRaw = Number(payload?.expiresAt || fallbackSession?.expiresAt || 0);
   const expiresAt = Number.isFinite(expiresAtRaw) && expiresAtRaw > 0 ? expiresAtRaw : null;
+  const subscriptionExpiresAtRaw = Number(payload?.subscriptionExpiresAt || fallbackSession?.subscriptionExpiresAt || 0);
+  const subscriptionExpiresAt = Number.isFinite(subscriptionExpiresAtRaw) && subscriptionExpiresAtRaw > 0 ? subscriptionExpiresAtRaw : null;
 
   return {
     userId: safeName(payload?.userId || fallbackSession?.userId) || createId('user'),
@@ -421,6 +423,7 @@ function normalizeAuthSessionPayload(payload, fallbackSession = null) {
     refreshToken: safeName(payload?.refreshToken || fallbackSession?.refreshToken),
     tokenType: safeName(payload?.tokenType || fallbackSession?.tokenType || 'Bearer'),
     expiresAt,
+    subscriptionExpiresAt,
     createdAt: Number(fallbackSession?.createdAt || now),
     updatedAt: now
   };
@@ -3127,6 +3130,16 @@ async function ensureEntityCreationQuota(store, isCreate) {
 }
 
 async function saveEntityFromCapture(data) {
+  // 检查认证和账号过期状态
+  const statusCheck = await checkAuthAndAccountStatus();
+  if (!statusCheck.success) {
+    await notifyFrontendStatusChange(statusCheck.type, statusCheck.message);
+    // 如果是认证过期，直接返回错误
+    if (statusCheck.type === 'auth_expired') {
+      return { success: false, error: statusCheck.message };
+    }
+  }
+
   const payload = data || {};
   const worldId = safeName(payload.worldId);
   const name = safeName(payload.name);
@@ -3204,6 +3217,71 @@ async function saveEntityFromCapture(data) {
   }
   
   return { success: true, entity };
+}
+
+// 检查认证和账号过期状态
+async function checkAuthAndAccountStatus() {
+  const session = await readAuthSessionRecord();
+  const now = Date.now();
+  
+  // 检查认证令牌过期
+  if (session?.expiresAt && session.expiresAt < now) {
+    // 认证过期，清除会话
+    await writeAuthSessionRecord(null);
+    return {
+      success: false,
+      type: 'auth_expired',
+      message: '登录已过期，请重新登录'
+    };
+  }
+  
+  // 检查账号订阅过期（如果有订阅信息）
+  if (session?.plan === 'pro' && session?.subscriptionExpiresAt && session.subscriptionExpiresAt < now) {
+    // 订阅过期，降级到 free
+    const updatedSession = {
+      ...session,
+      plan: 'free',
+      updatedAt: now
+    };
+    await writeAuthSessionRecord(updatedSession);
+    return {
+      success: false,
+      type: 'subscription_expired',
+      message: 'Pro 订阅已过期，已自动降级到 Free 版本'
+    };
+  }
+  
+  // 检查登录状态过期（30天未活动）
+  if (session?.updatedAt && (now - session.updatedAt) > 30 * 24 * 60 * 60 * 1000) {
+    // 会话过期，清除会话
+    await writeAuthSessionRecord(null);
+    return {
+      success: false,
+      type: 'session_expired',
+      message: '为保护账号安全，您已自动登出'
+    };
+  }
+  
+  return { success: true };
+}
+
+// 通知前端状态变化
+async function notifyFrontendStatusChange(type, message) {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { 
+          type: 'AUTH_STATUS_CHANGED',
+          data: { type, message }
+        }, (response) => {
+          // 忽略错误，因为可能没有内容脚本在该标签页
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error sending status change message:', err);
+  }
 }
 
 async function saveEntityFromSidepanel(payload) {

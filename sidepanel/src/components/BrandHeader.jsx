@@ -1,4 +1,4 @@
-function BrandHeader({ accountDisplayName, accountTriggerStatus, onOpenAccount, onRefresh, isRefreshing }) {
+function BrandHeader({ accountDisplayName, accountTriggerStatus, subscriptionStatus, onOpenAccount, onRefresh, isRefreshing }) {
   return (
     <header className="brand-header">
       <div className="brand-main">
@@ -25,10 +25,17 @@ function BrandHeader({ accountDisplayName, accountTriggerStatus, onOpenAccount, 
             )}
           </button>
         )}
-        <button type="button" className="account-trigger" onClick={onOpenAccount}>
-          <span className="account-trigger-name">{accountDisplayName}</span>
-          <span className="account-trigger-meta">{accountTriggerStatus}</span>
-        </button>
+        <div className="account-section">
+          <button type="button" className="account-trigger" onClick={onOpenAccount}>
+            <span className="account-trigger-name">{accountDisplayName}</span>
+            <span className="account-trigger-meta">{accountTriggerStatus}</span>
+          </button>
+          {subscriptionStatus && (
+            <div className={`subscription-status subscription-${subscriptionStatus.status}`}>
+              {subscriptionStatus.message}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
