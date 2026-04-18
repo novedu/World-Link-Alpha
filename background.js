@@ -3168,6 +3168,21 @@ async function saveEntityFromCapture(data) {
     status: CAPTURE_STATUS.CONVERTED
   });
   await incrementUsage(USAGE_ACTION.CAPTURE_CREATE, 1);
+  
+  // 通知所有侧边栏实例刷新数据
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'SYNC_DATA' }, (response) => {
+          // 忽略错误，因为可能没有内容脚本在该标签页
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error sending sync message:', err);
+  }
+  
   return { success: true, entity };
 }
 

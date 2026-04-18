@@ -137,6 +137,10 @@ export function useStorageSync({ setSelectedWorldId }) {
         loadData();
         // 数据更新后重置自动刷新时间
         resetRefreshInterval();
+      } else if (message.type === 'SYNC_DATA') {
+        loadData();
+        // 数据同步后重置自动刷新时间
+        resetRefreshInterval();
       }
     };
 
