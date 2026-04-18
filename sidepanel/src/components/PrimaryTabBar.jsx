@@ -1,10 +1,12 @@
 const TAB_ITEMS = [
-  { id: 'entities', label: '设定库' },
-  { id: 'captures', label: '灵感箱' },
-  { id: 'overview', label: '总览' }
+  { id: 'entities', label: '设定库', iconClassName: 'tab-icon tab-icon-entities' },
+  { id: 'captures', label: '灵感箱', iconClassName: 'tab-icon tab-icon-captures' },
+  { id: 'timeline', label: '时间轴', iconClassName: 'tab-icon tab-icon-timeline' },
+  { id: 'overview', label: '总览', iconClassName: 'tab-icon tab-icon-overview' }
 ];
 
 function PrimaryTabBar({ activeTab, onTabChange, captureCount }) {
+  const captureBadge = captureCount > 99 ? '99+' : captureCount;
   return (
     <nav className="tab-bar" aria-label="主导航">
       {TAB_ITEMS.map((item) => {
@@ -17,9 +19,10 @@ function PrimaryTabBar({ activeTab, onTabChange, captureCount }) {
             onClick={() => onTabChange(item.id)}
             aria-pressed={isActive}
           >
+            <span className={item.iconClassName} aria-hidden="true" />
             <span>{item.label}</span>
             {item.id === 'captures' && captureCount > 0 ? (
-              <span className="tab-badge">{captureCount}</span>
+              <span className="tab-badge">{captureBadge}</span>
             ) : null}
           </button>
         );

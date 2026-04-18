@@ -15,10 +15,12 @@ export function useExportFlow({
   entityTypeFilter,
   entityTagFilter,
   entitiesForView,
+  entityRelations,
   runtimeContext,
   setRuntimeContext,
   refreshRuntimeContext,
   typeLabels,
+  relationLabels,
   parseTags,
   onUiMessage
 }) {
@@ -41,6 +43,15 @@ export function useExportFlow({
     const worldName = (currentWorld?.name || 'world').replace(/\s+/g, '-');
     const scopeLabel = selectedBookId ? `书项目：${currentBook?.title || selectedBookId}` : `世界：${currentWorld?.name || ''}`;
     const timestamp = new Date().toISOString().slice(0, 10);
+    const entityIdSet = new Set(entitiesForView.map((entity) => String(entity.id || '').trim()).filter(Boolean));
+    const scopedRelations = (Array.isArray(entityRelations) ? entityRelations : []).filter((relation) => {
+      const relationWorldId = String(relation?.worldId || '').trim();
+      const fromEntityId = String(relation?.fromEntityId || '').trim();
+      const toEntityId = String(relation?.toEntityId || '').trim();
+      if (!fromEntityId || !toEntityId) return false;
+      if (relationWorldId && relationWorldId !== selectedWorldId) return false;
+      return entityIdSet.has(fromEntityId) && entityIdSet.has(toEntityId);
+    });
 
     const authorizeResult = await sendRuntimeMessage('REQUEST_EXPORT', { format });
     if (!authorizeResult?.success) {
@@ -61,7 +72,9 @@ export function useExportFlow({
         normalizedQuery,
         entityTypeFilter,
         entityTagFilter,
-        entities: entitiesForView
+        entities: entitiesForView,
+        scopedRelations,
+        typeLabels
       });
       downloadTextFile(
         buildExportFilename({ worldName, selectedBookId, timestamp, format: 'json' }),
@@ -72,7 +85,15 @@ export function useExportFlow({
       return;
     }
 
-    const markdown = buildMarkdownExport(entitiesForView, scopeLabel, typeLabels, parseTags);
+    const markdown = buildMarkdownExport({
+      entities: entitiesForView,
+      scopeLabel,
+      typeLabels,
+      parseTags,
+      relationLabels,
+      scopedRelations,
+      isBookScoped: Boolean(selectedBookId)
+    });
     downloadTextFile(
       buildExportFilename({ worldName, selectedBookId, timestamp, format: 'markdown' }),
       markdown,

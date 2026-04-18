@@ -1,5 +1,6 @@
 import { CAPTURE_STATUS } from '../constants/worldLink';
 import { getCaptureStatus } from '../utils/captureUtils';
+import EmptyStateCard from './EmptyStateCard';
 
 function truncateText(text, maxLength = 54) {
   if (!text) return '';
@@ -188,29 +189,20 @@ function CaptureSection({
             );
           })
         ) : (
-          <div className="empty-state">
-            {hasActiveFilters && totalCaptureCount > 0 ? (
-              <>
-                <p className="empty-state-title">筛选后暂无结果</p>
-                <p className="empty-state-desc">当前筛选条件下没有灵感记录，试试清空筛选。</p>
-                <div className="empty-state-actions">
-                  <button type="button" className="btn-secondary btn-mini" onClick={onClearCaptureFilters}>
-                    清空筛选
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="empty-state-title">还没有灵感记录</p>
-                <p className="empty-state-desc">在网页选中文字后，右键点击“存入 World-Link”即可开始收集灵感。</p>
-                <div className="empty-state-actions">
-                  <button type="button" className="btn-secondary btn-mini" onClick={onGoToEntityTab}>
-                    去设定库手动新建
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <EmptyStateCard
+            icon={hasActiveFilters && totalCaptureCount > 0 ? '筛' : '灵'}
+            title={hasActiveFilters && totalCaptureCount > 0 ? '筛选后暂无结果' : '还没有灵感记录'}
+            description={
+              hasActiveFilters && totalCaptureCount > 0
+                ? '当前筛选条件下没有灵感记录，试试清空筛选。'
+                : '在网页选中文字后，右键点击“存入 World-Link”即可开始收集灵感。'
+            }
+            actions={
+              hasActiveFilters && totalCaptureCount > 0
+                ? [{ label: '清空筛选', onClick: onClearCaptureFilters }]
+                : [{ label: '去设定库手动新建', onClick: onGoToEntityTab }]
+            }
+          />
         )}
       </div>
 

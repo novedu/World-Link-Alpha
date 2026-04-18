@@ -1,8 +1,10 @@
 /* global chrome */
 
 import { useEffect, useRef, useState } from 'react';
-
-const STORAGE_KEYS = ['capturedList', 'worlds', 'books', 'entities', 'bookEntityUsages', 'entityRelations'];
+import { worldService } from '../services/world.service';
+import { captureService } from '../services/capture.service';
+import { bookService } from '../services/book.service';
+import { entityService } from '../services/entity.service';
 
 export function useStorageSync({ setSelectedWorldId }) {
   const [capturedList, setCapturedList] = useState([]);
@@ -12,7 +14,10 @@ export function useStorageSync({ setSelectedWorldId }) {
   const [bookEntityUsages, setBookEntityUsages] = useState([]);
   const [entityRelations, setEntityRelations] = useState([]);
   const [highlightedCaptureId, setHighlightedCaptureId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const highlightedTimeoutRef = useRef(null);
+  const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
     const syncWorlds = (nextWorlds) => {
@@ -22,64 +27,115 @@ export function useStorageSync({ setSelectedWorldId }) {
       }
     };
 
-    const loadInitial = () => {
+    const loadData = async () => {
       try {
-        chrome.storage.local.get(STORAGE_KEYS, (result) => {
-          if (Array.isArray(result.capturedList)) setCapturedList(result.capturedList);
-          if (Array.isArray(result.worlds)) syncWorlds(result.worlds);
-          if (Array.isArray(result.books)) setBooks(result.books);
-          if (Array.isArray(result.entities)) setEntities(result.entities);
-          if (Array.isArray(result.bookEntityUsages)) setBookEntityUsages(result.bookEntityUsages);
-          if (Array.isArray(result.entityRelations)) setEntityRelations(result.entityRelations);
-        });
-      } catch (error) {
-        console.error('[Sidepanel] 初始加载失败:', error);
+        setLoading(true);
+        setError(null);
+        
+        // 从 API 获取数据
+        const worldsResponse = await worldService.getWorlds();
+        
+        if (worldsResponse.success) {
+          syncWorlds(worldsResponse.data);
+        }
+        
+        // 获取捕获列表
+        const capturesResponse = await captureService.getCaptures();
+        if (capturesResponse.success) {
+          // 转换后端返回的捕获记录格式为前端期望的格式
+          const formattedCaptures = capturesResponse.data.map(capture => ({
+            id: capture.id,
+            text: capture.text,
+            timestamp: new Date(capture.createdAt).getTime(),
+            sourceUrl: capture.sourceUrl || '',
+            sourceTitle: capture.sourceTitle || '',
+            count: 1,
+            isPinned: false,
+            status: capture.status || 'inbox',
+            statusUpdatedAt: new Date(capture.updatedAt).getTime()
+          }));
+          setCapturedList(formattedCaptures);
+        }
+        
+        // 只有当有世界时才获取书籍和实体
+        if (worldsResponse.success && worldsResponse.data.length > 0) {
+          const firstWorldId = worldsResponse.data[0].id;
+          
+          // 获取书籍列表
+          const booksResponse = await bookService.getBooks(firstWorldId);
+          if (booksResponse.success) {
+            setBooks(booksResponse.data);
+          }
+          
+          // 获取实体列表
+          const entitiesResponse = await entityService.getEntities(firstWorldId);
+          if (entitiesResponse.success) {
+            setEntities(entitiesResponse.data);
+          }
+        }
+      } catch (err) {
+        console.error('[Sidepanel] API 加载失败:', err);
+        setError('加载数据失败，请刷新页面重试');
+        
+        // 回退到本地存储
+        try {
+          const STORAGE_KEYS = ['capturedList', 'worlds', 'books', 'entities', 'bookEntityUsages', 'entityRelations'];
+          chrome.storage.local.get(STORAGE_KEYS, (result) => {
+            if (Array.isArray(result.capturedList)) setCapturedList(result.capturedList);
+            if (Array.isArray(result.worlds)) syncWorlds(result.worlds);
+            if (Array.isArray(result.books)) setBooks(result.books);
+            if (Array.isArray(result.entities)) setEntities(result.entities);
+            if (Array.isArray(result.bookEntityUsages)) setBookEntityUsages(result.bookEntityUsages);
+            if (Array.isArray(result.entityRelations)) setEntityRelations(result.entityRelations);
+          });
+        } catch (localError) {
+          console.error('[Sidepanel] 本地存储加载失败:', localError);
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    const maybeHighlightLatestCapture = (changeRecord) => {
-      const nextList = changeRecord?.newValue;
-      if (!Array.isArray(nextList)) return;
-      const oldList = Array.isArray(changeRecord.oldValue) ? changeRecord.oldValue : [];
-      const nextFirst = nextList[0];
-      const oldFirst = oldList[0];
-      if (!nextFirst || (oldFirst && oldFirst.text === nextFirst.text && oldFirst.timestamp === nextFirst.timestamp)) {
-        return;
+    const resetRefreshInterval = () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
       }
-      setHighlightedCaptureId(nextFirst.text);
+      // 重置 30 秒自动刷新
+      refreshIntervalRef.current = setInterval(loadData, 30000);
+    };
+
+    const maybeHighlightLatestCapture = (newCapture) => {
+      if (!newCapture) return;
+      setHighlightedCaptureId(newCapture.text);
       if (highlightedTimeoutRef.current) clearTimeout(highlightedTimeoutRef.current);
       highlightedTimeoutRef.current = setTimeout(() => setHighlightedCaptureId(null), 1800);
     };
 
-    loadInitial();
+    // 初始加载
+    loadData();
 
-    const handler = (changes, areaName) => {
-      if (areaName !== 'local') return;
+    // 定期刷新数据
+    resetRefreshInterval();
 
-      if (changes.capturedList) {
-        maybeHighlightLatestCapture(changes.capturedList);
-        setCapturedList(Array.isArray(changes.capturedList.newValue) ? changes.capturedList.newValue : []);
-      }
-      if (changes.worlds) {
-        syncWorlds(Array.isArray(changes.worlds.newValue) ? changes.worlds.newValue : []);
-      }
-      if (changes.books) {
-        setBooks(Array.isArray(changes.books.newValue) ? changes.books.newValue : []);
-      }
-      if (changes.entities) {
-        setEntities(Array.isArray(changes.entities.newValue) ? changes.entities.newValue : []);
-      }
-      if (changes.bookEntityUsages) {
-        setBookEntityUsages(Array.isArray(changes.bookEntityUsages.newValue) ? changes.bookEntityUsages.newValue : []);
-      }
-      if (changes.entityRelations) {
-        setEntityRelations(Array.isArray(changes.entityRelations.newValue) ? changes.entityRelations.newValue : []);
+    // 监听消息，当有新的捕获时刷新数据
+    const messageHandler = (message) => {
+      if (message.type === 'CAPTURE_ADDED') {
+        loadData();
+        maybeHighlightLatestCapture(message.data);
+        // 创建捕获后重置自动刷新时间
+        resetRefreshInterval();
+      } else if (message.type === 'DATA_UPDATED') {
+        loadData();
+        // 数据更新后重置自动刷新时间
+        resetRefreshInterval();
       }
     };
 
-    chrome.storage.onChanged.addListener(handler);
+    chrome.runtime.onMessage.addListener(messageHandler);
+
     return () => {
-      chrome.storage.onChanged.removeListener(handler);
+      chrome.runtime.onMessage.removeListener(messageHandler);
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
       if (highlightedTimeoutRef.current) clearTimeout(highlightedTimeoutRef.current);
     };
   }, [setSelectedWorldId]);
@@ -91,6 +147,8 @@ export function useStorageSync({ setSelectedWorldId }) {
     entities,
     bookEntityUsages,
     entityRelations,
-    highlightedCaptureId
+    highlightedCaptureId,
+    loading,
+    error
   };
 }

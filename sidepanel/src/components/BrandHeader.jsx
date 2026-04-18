@@ -1,4 +1,4 @@
-function BrandHeader({ accountDisplayName, accountTriggerStatus, onOpenAccount }) {
+function BrandHeader({ accountDisplayName, accountTriggerStatus, onOpenAccount, onRefresh, isRefreshing }) {
   return (
     <header className="brand-header">
       <div className="brand-main">
@@ -10,10 +10,26 @@ function BrandHeader({ accountDisplayName, accountTriggerStatus, onOpenAccount }
           <p className="brand-subtitle">设定采集 · 世界管理 · 设定同步</p>
         </div>
       </div>
-      <button type="button" className="account-trigger" onClick={onOpenAccount}>
-        <span className="account-trigger-name">{accountDisplayName}</span>
-        <span className="account-trigger-meta">{accountTriggerStatus}</span>
-      </button>
+      <div className="header-actions">
+        {onRefresh && (
+          <button 
+            type="button" 
+            className="refresh-button" 
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            ) : (
+              '刷新'
+            )}
+          </button>
+        )}
+        <button type="button" className="account-trigger" onClick={onOpenAccount}>
+          <span className="account-trigger-name">{accountDisplayName}</span>
+          <span className="account-trigger-meta">{accountTriggerStatus}</span>
+        </button>
+      </div>
     </header>
   );
 }

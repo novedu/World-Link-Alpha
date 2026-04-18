@@ -1,9 +1,12 @@
+/* global chrome */
+
 import { useMemo, useState } from 'react';
 import './App.css';
 import WorldBookSection from './components/WorldBookSection';
 import WorldSummaryCard from './components/WorldSummaryCard';
 import EntitySection from './components/EntitySection';
 import CaptureSection from './components/CaptureSection';
+import TimelineSection from './components/TimelineSection';
 import PrimaryTabBar from './components/PrimaryTabBar';
 import BrandHeader from './components/BrandHeader';
 import AccountSyncModal from './components/AccountSyncModal';
@@ -33,26 +36,43 @@ import { useUiMessage } from './hooks/useUiMessage';
 import { useSelectionState } from './hooks/useSelectionState';
 import { useWorldBookMeta } from './hooks/useWorldBookMeta';
 import { useWorldBookSelectionHandlers } from './hooks/useWorldBookSelectionHandlers';
-import { formatRuntimeError, sendRuntimeMessage } from './services/runtimeApi';
+import { useManuscriptFlow } from './hooks/useManuscriptFlow';
 
 function App() {
   const [entitySearchQuery, setEntitySearchQuery] = useState('');
   const [entityTypeFilter, setEntityTypeFilter] = useState('all');
   const [entityTagFilter, setEntityTagFilter] = useState('');
   const [activeTab, setActiveTab] = useState('entities');
+
+  const handleTabChange = async (newTab) => {
+    setActiveTab(newTab);
+    // 切换 Tab 时刷新数据
+    await handleRefresh();
+  };
   const [captureStatusFilter, setCaptureStatusFilter] = useState('all');
   const [captureSourceFilter, setCaptureSourceFilter] = useState('all');
   const [captureTimeFilter, setCaptureTimeFilter] = useState('all');
   const [overviewRelationScope, setOverviewRelationScope] = useState('book');
   const [overviewBookGraphId, setOverviewBookGraphId] = useState('');
-  const [manuscriptText, setManuscriptText] = useState('');
-  const [manuscriptSuggestions, setManuscriptSuggestions] = useState([]);
-  const [isParsingManuscript, setIsParsingManuscript] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { selectedWorldId, setSelectedWorldId, selectedBookId, setSelectedBookId, selectWorld, selectBook } = useSelectionState();
   const { uiMessage, showUiMessage, clearUiMessage } = useUiMessage();
-  const { capturedList, worlds, books, entities, bookEntityUsages, entityRelations, highlightedCaptureId } = useStorageSync({ setSelectedWorldId });
+  const { capturedList, worlds, books, entities, bookEntityUsages, entityRelations, highlightedCaptureId, loading, error } = useStorageSync({ setSelectedWorldId });
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // 手动触发数据刷新
+      chrome.runtime.sendMessage({ type: 'REFRESH_DATA' });
+      showUiMessage('数据已刷新', 'success');
+    } catch {
+      showUiMessage('刷新失败', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const {
     runtimeContext,
@@ -80,6 +100,7 @@ function App() {
     handleAddWorld,
     handleAddBook,
     handleSignIn,
+    handleRegister,
     handleMigrateLocalToCloud
   } = useActionDialogFlow({
     selectedWorldId,
@@ -98,20 +119,44 @@ function App() {
     isSavingEntity,
     isAiAssisting,
     isCheckingConflict,
+    isSubmittingAiFeedback,
     handleStartNewEntity,
     handleEditEntity,
     handleEntityFieldChange,
     handleToggleEditorTag,
     handleAiAssist,
     handleCheckConflict,
+    handleSubmitAiFeedback,
     handleCancelEdit,
-    handleSaveEntity
+    handleSaveEntity,
+    aiAssistMeta,
+    aiAssistProfile,
+    setAiAssistProfile,
+    conflictCheckMeta
   } = useEntityEditorFlow({
     selectedWorldId,
     selectedBookId,
     bookEntityUsages,
     entityRelations,
     setActiveTab,
+    onUiMessage: showUiMessage
+  });
+  const {
+    manuscriptText,
+    manuscriptSuggestions,
+    manuscriptRelationSuggestions,
+    manuscriptParseMeta,
+    isParsingManuscript,
+    setManuscriptText,
+    handleParseManuscript,
+    handleClearManuscriptSuggestions,
+    handleApplyManuscriptSuggestion,
+    handleBatchApplyRelations
+  } = useManuscriptFlow({
+    selectedWorldId,
+    selectedBookId,
+    setActiveTab,
+    setEditingEntity,
     onUiMessage: showUiMessage
   });
 
@@ -176,10 +221,12 @@ function App() {
     entityTypeFilter,
     entityTagFilter,
     entitiesForView,
+    entityRelations,
     runtimeContext,
     setRuntimeContext,
     refreshRuntimeContext,
     typeLabels: TYPE_LABELS,
+    relationLabels: ENTITY_RELATION_LABELS,
     parseTags,
     onUiMessage: showUiMessage
   });
@@ -241,58 +288,6 @@ function App() {
     setCaptureSourceFilter('all');
     setCaptureTimeFilter('all');
   };
-  const handleParseManuscript = async () => {
-    if (!selectedWorldId) {
-      showUiMessage('请先选择世界观库后再解析书稿', 'warning');
-      return;
-    }
-    const sourceText = String(manuscriptText || '').trim();
-    if (!sourceText) {
-      showUiMessage('请先粘贴书稿内容', 'warning');
-      return;
-    }
-    if (isParsingManuscript) return;
-
-    setIsParsingManuscript(true);
-    const result = await sendRuntimeMessage('PARSE_MANUSCRIPT', {
-      worldId: selectedWorldId,
-      bookId: selectedBookId,
-      text: sourceText
-    });
-    setIsParsingManuscript(false);
-
-    if (!result?.success) {
-      showUiMessage(formatRuntimeError(result, '书稿解析失败'), 'error');
-      return;
-    }
-
-    const suggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
-    setManuscriptSuggestions(suggestions);
-    showUiMessage(`解析完成，提取到 ${suggestions.length} 个候选设定`, 'success');
-  };
-  const handleClearManuscriptSuggestions = () => {
-    setManuscriptSuggestions([]);
-  };
-  const handleApplyManuscriptSuggestion = (suggestion) => {
-    if (!selectedWorldId || !suggestion) return;
-    const nextTags = Array.isArray(suggestion.tags) && suggestion.tags.length > 0 ? suggestion.tags.join(', ') : '书稿提取';
-    setActiveTab('entities');
-    setEditingEntity({
-      id: '',
-      worldId: selectedWorldId,
-      name: String(suggestion.name || '').trim(),
-      type: suggestion.type || 'other',
-      summary: suggestion.summary || '',
-      tags: nextTags,
-      relations: [],
-      conflictHints: [],
-      selectedText: suggestion.summary || '',
-      sourceUrl: '',
-      sourceTitle: selectedBookId ? '书稿解析（当前作品）' : '书稿解析',
-      usedInCurrentBook: Boolean(selectedBookId)
-    });
-    showUiMessage(`已将「${suggestion.name || '候选设定'}」填充到设定编辑器`, 'success');
-  };
 
   const isEntityUsedInCurrentBook = (entityId) => {
     if (!selectedBookId) return false;
@@ -350,9 +345,37 @@ function App() {
           accountDisplayName={accountDisplayName}
           accountTriggerStatus={accountTriggerStatus}
           onOpenAccount={openAccountModal}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
 
         <InlineMessage message={uiMessage} onClose={clearUiMessage} />
+        
+        {loading && (
+          <div className="section-card">
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-slate-600">加载数据中...</span>
+            </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="section-card">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="text-red-500 mr-2">⚠️</div>
+                <span className="text-red-700">{error}</span>
+              </div>
+              <button 
+                onClick={handleRefresh} 
+                className="mt-2 text-sm text-blue-600 hover:underline"
+              >
+                重试
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="section-card">
           <div className="card-header">
@@ -374,7 +397,7 @@ function App() {
           />
         </div>
 
-        <PrimaryTabBar activeTab={activeTab} onTabChange={setActiveTab} captureCount={capturedList.length} />
+        <PrimaryTabBar activeTab={activeTab} onTabChange={handleTabChange} captureCount={capturedList.length} />
 
         {activeTab === 'overview' ? (
           <div className="section-card fade-in">
@@ -443,6 +466,8 @@ function App() {
               relationLabels={ENTITY_RELATION_LABELS}
               manuscriptText={manuscriptText}
               manuscriptSuggestions={manuscriptSuggestions}
+              manuscriptRelationSuggestions={manuscriptRelationSuggestions}
+              manuscriptParseMeta={manuscriptParseMeta}
               isParsingManuscript={isParsingManuscript}
               onSearchChange={setEntitySearchQuery}
               onTypeFilterChange={setEntityTypeFilter}
@@ -458,6 +483,7 @@ function App() {
               onParseManuscript={handleParseManuscript}
               onApplyManuscriptSuggestion={handleApplyManuscriptSuggestion}
               onClearManuscriptSuggestions={handleClearManuscriptSuggestions}
+              onBatchApplyRelations={handleBatchApplyRelations}
               onSaveEntity={handleSaveEntity}
               onCancelEdit={handleCancelEdit}
               onExportJson={handleExportJson}
@@ -469,6 +495,12 @@ function App() {
               isSavingEntity={isSavingEntity}
               isAiAssisting={isAiAssisting}
               isCheckingConflict={isCheckingConflict}
+              isSubmittingAiFeedback={isSubmittingAiFeedback}
+              aiAssistMeta={aiAssistMeta}
+              aiAssistProfile={aiAssistProfile}
+              onAiAssistProfileChange={setAiAssistProfile}
+              conflictCheckMeta={conflictCheckMeta}
+              onSubmitAiFeedback={handleSubmitAiFeedback}
               isEntityUsedInCurrentBook={isEntityUsedInCurrentBook}
               totalEntitiesInContext={entitiesInContext.length}
               onGoToCaptureTab={openCaptureTab}
@@ -507,6 +539,19 @@ function App() {
           </div>
         ) : null}
 
+        {activeTab === 'timeline' ? (
+          <div className="section-card fade-in">
+            <TimelineSection
+              currentWorld={currentWorld}
+              currentEntity={editingEntity}
+              entitiesInWorld={entitiesInWorld}
+              onChangeField={handleEntityFieldChange}
+              relationOptions={ENTITY_RELATION_OPTIONS}
+              relationLabels={ENTITY_RELATION_LABELS}
+            />
+          </div>
+        ) : null}
+
         <AccountSyncModal
           open={isAccountModalOpen}
           onClose={closeAccountModal}
@@ -525,6 +570,7 @@ function App() {
           canUpgradePlan={canUpgradePlan}
           onSignOut={handleSignOut}
           onSignIn={handleSignIn}
+          onRegister={handleRegister}
           helperText={helperText}
           cloudLastErrorHint={cloudLastErrorHint}
         />

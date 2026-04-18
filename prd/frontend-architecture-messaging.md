@@ -24,6 +24,11 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 - 运行时配置管理（`repositoryMode`、`cloudApiBaseUrl`、超时，主要用于内部环境）
 - 登录与会话管理（本地会话 + 云端密码登录 + token 刷新）
 - Entitlements 与配额门禁（Free/Pro）
+- AI 能力路由（云端优先 + 本地兜底）：
+  - `AI_ENTITY_ASSIST` → `/v1/ai/entity-assist`
+  - `CHECK_ENTITY_CONFLICT` → `/v1/ai/entity-conflict`
+  - `PARSE_MANUSCRIPT` → `/v1/ai/manuscript-parse`
+  - `REPORT_AI_FEEDBACK` → `/v1/ai/feedback`
 - 处理所有写入动作：
   - 创建世界
   - 创建书项目
@@ -76,8 +81,12 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 - `useEntityEditorFlow`：实体编辑器状态、字段更新、保存提交流程
   - AI 扩展：`AI_ENTITY_ASSIST` 调用、处理中状态、summary 回填
   - 冲突检测：`CHECK_ENTITY_CONFLICT` 调用、结果回填与提示展示
-- `App.jsx`：实体页承接书稿解析 v0（粘贴文本、触发解析、候选回填）
+  - 质量联调反馈：`REPORT_AI_FEEDBACK` 上报“结果有帮助 / 需优化”与策略元信息
+  - AI 元信息：记录最近操作来源（云端模型 / 本地兜底）、策略版本、质量标签与时间，用于编辑器内可视化反馈
+  - 冲突联调元信息：记录 `conflictMeta + calibration + strategyVersion`，用于风险摘要与阈值快照展示
+- `App.jsx`：实体页承接书稿解析 v1（粘贴文本、触发解析、候选设定回填 + 关系推断回填）
 - `useCaptureInboxFlow`：捕获转实体与捕获状态流转
+- `useManuscriptFlow`：书稿解析状态、关系推断结果、候选设定回填动作
 - `useStorageSync`：storage 初始化加载、变更监听、捕获高亮提醒
 - `useExportFlow`：导出鉴权、文件生成下载、导出后配额刷新
 - `useOverviewStats`：概览统计卡片的数据组装
@@ -89,12 +98,19 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 
 ### `sidepanel/src/components/*`
 - `InlineMessage`：全局提示条渲染与关闭交互
+- `EntitySection`：展示书稿解析关系推断结果，支持一键回填关系；展示 AI 来源、质量信息、阈值快照与最近操作时间
+  - 支持 AI 结果反馈按钮（有帮助 / 需优化；检测准确 / 需校准）
+- `EmptyStateCard`：统一空状态视觉与 CTA 按钮口径
+  - 支持 `compact` 形态，用于概览与图谱区的高密度空态提示
 - `RelationGraphPreviewCard`：概览页关系图谱交互预览（缩放/拖拽/节点高亮）
   - 支持世界图谱 / 本书图谱切换
   - 支持书图谱目标书下拉选择（不改全局上下文）
   - 内置力导向布局迭代，降低节点重叠
+  - v4 进行中：布局缓存（LRU）+ 拖拽帧节流（RAF）+ 迭代提前收敛
+  - 新增渲染模式（自动/标准/轻量），关系规模大时自动降级轻量渲染
+  - 新增分批渲染控制（加载更多）与焦点关系方向过滤（全部/发出/指向）
 - `WorldSummaryCard`：概览页聚合卡片
-  - 跨世界快览 v1（世界摘要 + 搜索/排序 + 一键跳转）
+  - 跨世界快览 v1（世界摘要 + 搜索/排序/活跃分组 + 一键跳转）
   - 时间轴 v0（实体更新 + 捕获记录）
 
 ### `sidepanel/src/services/*`
@@ -207,10 +223,45 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
     mode: 'summarize' | 'expand',
     text: string,
     entityId?: string,
-    worldId?: string
+    worldId?: string,
+    assistProfile?: {
+      style?: 'concise' | 'balanced' | 'detailed',
+      targetLength?: 'short' | 'medium' | 'long'
+    }
   }
 }
 ```
+
+响应关键字段（当前实现）：
+
+```js
+{
+  success: true,
+  mode: 'summarize' | 'expand',
+  text: string,
+  provider: 'cloud-model' | 'local-fallback' | 'local-heuristic',
+  model?: string,
+  strategyVersion?: string,
+  assistProfile?: {
+    style: 'concise' | 'balanced' | 'detailed',
+    targetLength: 'short' | 'medium' | 'long'
+  },
+  qualityScore?: number, // 0~1（支持后端传 0~100 自动归一）
+  qualityTier?: 'high' | 'medium' | 'low',
+  qualityLabel?: string,
+  fallbackReason?: string,
+  fallbackType?: string,
+  fallbackStatus?: number,
+  fallbackRetriable?: boolean,
+  fallbackTraceId?: string
+}
+```
+
+说明：
+- 当前前端允许用户在 Sidepanel 选择“文案风格 + 长度策略”，并通过 `assistProfile` 下发。
+- 云端不可用时，本地兜底也会按同一 `assistProfile` 生成，保证体验一致性。
+- 前端可直接消费 `qualityScore/qualityTier/qualityLabel` 显示文案质量信息；若后端暂未返回，UI 自动降级为不展示。
+- `strategyVersion` 用于标记当前云端提示词/策略版本，便于 A/B 或灰度联调排查。
 
 ### `CHECK_ENTITY_CONFLICT`
 
@@ -229,6 +280,109 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
 }
 ```
 
+响应关键字段（当前实现）：
+
+```js
+{
+  success: true,
+  hasConflict: boolean,
+  strategyVersion?: string,
+  conflictMeta?: {
+    total: number,
+    high: number,
+    medium: number,
+    low: number
+  },
+  calibration?: {
+    similarity: { name: number, summary: number },
+    risk: { high: number, medium: number },
+    rowLimit: number
+  },
+  conflicts: Array<{
+    entityId: string,
+    name: string,
+    type: string,
+    confidence: number, // 0~0.99
+    reason: string,
+    reasonCode?: 'exact_type_mismatch' | 'exact_name_duplicate' | 'life_status_conflict' | 'name_and_summary_similar' | 'name_similar' | 'summary_similar' | 'potential_conflict',
+    signals?: {
+      exactName: boolean,
+      typeMismatch: boolean,
+      lifeConflict: boolean,
+      nameSimilarity: number,
+      summarySimilarity: number
+    }
+  }>,
+  provider: 'cloud-model' | 'local-fallback' | 'local-heuristic',
+  fallbackReason?: string,
+  fallbackType?: string,
+  fallbackStatus?: number,
+  fallbackRetriable?: boolean,
+  fallbackTraceId?: string
+}
+```
+
+说明：
+- 前端可按 `confidence` 做高/中/低风险分层展示（当前实现：`>=0.9` 高风险，`>=0.75` 中风险，其他低风险）。
+- `strategyVersion` 用于前后端联调时确认冲突策略版本，便于排查阈值差异。
+- `conflictMeta` 提供风险分布统计，可直接用于“高/中/低风险”摘要展示。
+- `calibration` 提供本次冲突策略阈值快照（名称/描述相似度、风险阈值、返回行数上限），用于前后端阈值联调可视化。
+- 建议优先使用 `reasonCode` 渲染统一解释文案，`reason` 作为兼容兜底。
+- 前端已基于 `reasonCode` 增加处理建议模板（如重命名、合并、核对时间线），用于缩短人工决策路径。
+
+### `REPORT_AI_FEEDBACK`
+
+```js
+{
+  type: 'REPORT_AI_FEEDBACK',
+  data: {
+    scope: 'assist' | 'conflict',
+    decision: 'positive' | 'negative',
+    provider?: string,
+    model?: string,
+    strategyVersion?: string,
+    traceId?: string,
+    worldId?: string,
+    bookId?: string,
+    entityId?: string,
+    mode?: 'summarize' | 'expand',
+    assistProfile?: {
+      style?: 'concise' | 'balanced' | 'detailed',
+      targetLength?: 'short' | 'medium' | 'long'
+    },
+    qualityScore?: number,
+    qualityTier?: 'high' | 'medium' | 'low',
+    qualityLabel?: string,
+    conflictCount?: number,
+    conflictMeta?: { total: number, high: number, medium: number, low: number },
+    feedbackAt?: number
+  }
+}
+```
+
+响应关键字段（当前实现）：
+
+```js
+{
+  success: true,
+  recorded: boolean, // true=云端已记录；false=仅本地接收（云端不可用）
+  scope: 'assist' | 'conflict',
+  decision: 'positive' | 'negative',
+  provider: 'cloud-model' | 'local-only' | 'local-fallback',
+  ticketId?: string,
+  message?: string,
+  fallbackReason?: string,
+  fallbackType?: string,
+  fallbackStatus?: number,
+  fallbackRetriable?: boolean,
+  fallbackTraceId?: string
+}
+```
+
+说明：
+- 该协议用于 Task 05/06 的质量联调闭环：前端可直接上报“有帮助/需优化”。
+- `recorded=false` 时不视为业务失败，UI 应提示“反馈已接收，云端稍后同步/重试”。
+
 ### `PARSE_MANUSCRIPT`
 
 ```js
@@ -241,6 +395,40 @@ World-Link Alpha 目前是 **双入口、单写入通道、Repository 抽象层*
   }
 }
 ```
+
+响应关键字段（当前实现）：
+
+```js
+{
+  success: true,
+  suggestions: Array<{
+    name: string,
+    type: string,
+    summary: string,
+    frequency: number,
+    confidence: number,
+    tags: string[]
+  }>,
+  relationSuggestions: Array<{
+    fromName: string,
+    toName: string,
+    type: 'belongs_to' | 'hostile_to' | 'kinship' | 'uses' | 'originates_from' | 'related_to',
+    confidence: number,
+    count: number,
+    evidence?: string
+  }>,
+  provider: 'cloud-model' | 'local-fallback' | 'local-heuristic',
+  fallbackReason?: string,
+  fallbackType?: string,
+  fallbackStatus?: number,
+  fallbackRetriable?: boolean,
+  fallbackTraceId?: string
+}
+```
+
+说明：
+- 当 `provider = 'local-fallback'` 时，前端应优先使用 `fallbackType` 渲染友好提示文案（超时/网络/鉴权/限流/服务异常）。
+- `fallbackReason` 仅作为兜底补充文本，不建议直接原样外显给用户。
 
 ### `UPDATE_CAPTURE_STATUS`
 

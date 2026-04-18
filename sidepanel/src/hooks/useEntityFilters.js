@@ -22,15 +22,15 @@ function buildRelationRows(relations, relationLabels, entityNameById, previewLim
 
   const previewRows = sortedRelations.slice(0, previewLimit).map((relation) => ({
     ...relation,
-    fromName: entityNameById.get(relation.fromEntityId) || '未知实体',
-    toName: entityNameById.get(relation.toEntityId) || '未知实体',
+    fromName: entityNameById.get(relation.fromEntityId) || '未知设定',
+    toName: entityNameById.get(relation.toEntityId) || '未知设定',
     typeLabel: relationLabels[relation.type] || relation.type || '关联'
   }));
 
   const graphEdges = sortedRelations.slice(0, graphLimit).map((relation) => ({
     ...relation,
-    fromName: entityNameById.get(relation.fromEntityId) || '未知实体',
-    toName: entityNameById.get(relation.toEntityId) || '未知实体',
+    fromName: entityNameById.get(relation.fromEntityId) || '未知设定',
+    toName: entityNameById.get(relation.toEntityId) || '未知设定',
     typeLabel: relationLabels[relation.type] || relation.type || '关联'
   }));
 
@@ -150,7 +150,7 @@ export function useEntityFilters({
   const entityNameById = useMemo(() => {
     const map = new Map();
     entitiesInWorld.forEach((entity) => {
-      map.set(entity.id, entity.name || '未命名实体');
+      map.set(entity.id, entity.name || '未命名设定');
     });
     return map;
   }, [entitiesInWorld]);

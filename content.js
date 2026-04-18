@@ -82,27 +82,28 @@ function showToast(text, isError = false) {
 // ==================== 采集面板 ====================
 function createCapturePanel() {
   try {
+    closeCapturePanel();
     const id = 'wl-capture-panel';
     capturePanel = document.createElement('div');
     capturePanel.id = id;
     capturePanel.style.cssText = [
-      'position:fixed',
-      'top:50%',
-      'left:50%',
-      'transform:translate(-50%, -50%)',
-      'z-index:2147483647',
-      'background:#ffffff',
-      'color:#0f172a',
-      'padding:24px',
-      'border-radius:12px',
-      'border:1px solid #e2e8f0',
-      'box-shadow:0 20px 42px rgba(15,23,42,0.22)',
-      'width:90vw',
-      'max-width:500px',
-      'max-height:80vh',
-      'overflow-y:auto',
-      'font-family:Plus Jakarta Sans,Segoe UI,PingFang SC,sans-serif'
-    ].join(';');
+        'position:fixed',
+        'top:50%',
+        'left:50%',
+        'transform:translate(-50%, -50%)',
+        'z-index:2147483647',
+        'background:var(--bg-card, #ffffff)',
+        'color:var(--text-primary, #0f172a)',
+        'padding:24px',
+        'border-radius:12px',
+        'border:1px solid var(--border-default, #e2e8f0)',
+        'box-shadow:0 20px 42px rgba(15,23,42,0.22)',
+        'width:90vw',
+        'max-width:500px',
+        'max-height:80vh',
+        'overflow-y:auto',
+        'font-family:Plus Jakarta Sans,Segoe UI,PingFang SC,sans-serif'
+      ].join(';');
 
     // 关闭按钮
     const closeButton = document.createElement('button');
@@ -435,20 +436,20 @@ function createCapturePanel() {
     cancelButton.style.cssText = [
       'padding:8px 16px',
       'border-radius:8px',
-      'border:1px solid #e2e8f0',
-      'background:#ffffff',
-      'color:#0f172a',
+      'border:1px solid var(--border-default, #e2e8f0)',
+      'background:var(--bg-card, #ffffff)',
+      'color:var(--text-primary, #0f172a)',
       'font-size:14px',
       'cursor:pointer',
       'transition:all 120ms ease-in-out'
     ].join(';');
     cancelButton.addEventListener('mouseenter', () => {
-      cancelButton.style.background = '#f8fafc';
+      cancelButton.style.background = 'var(--bg-soft, #f8fafc)';
       cancelButton.style.borderColor = '#cbd5e1';
     });
     cancelButton.addEventListener('mouseleave', () => {
-      cancelButton.style.background = '#ffffff';
-      cancelButton.style.borderColor = '#e2e8f0';
+      cancelButton.style.background = 'var(--bg-card, #ffffff)';
+      cancelButton.style.borderColor = 'var(--border-default, #e2e8f0)';
     });
     cancelButton.addEventListener('click', closeCapturePanel);
     buttonsContainer.appendChild(cancelButton);
@@ -459,7 +460,7 @@ function createCapturePanel() {
       'padding:8px 16px',
       'border-radius:8px',
       'border:none',
-      'background:#3b82f6',
+      'background:var(--primary, #2563eb)',
       'color:white',
       'font-size:14px',
       'font-weight:500',
@@ -467,10 +468,10 @@ function createCapturePanel() {
       'transition:all 120ms ease-in-out'
     ].join(';');
     saveButton.addEventListener('mouseenter', () => {
-      saveButton.style.background = '#2563eb';
+      saveButton.style.background = 'var(--primary-hover, #1D4ED8)';
     });
     saveButton.addEventListener('mouseleave', () => {
-      saveButton.style.background = '#3b82f6';
+      saveButton.style.background = 'var(--primary, #2563eb)';
     });
     saveButton.addEventListener('click', saveEntity);
     buttonsContainer.appendChild(saveButton);
@@ -637,6 +638,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // 初始化数据
       panelData = {
         ...panelData,
+        pageTitle: document.title,
+        pageUrl: window.location.href,
         selectedText: message.data.selectedText || '',
         worlds: message.data.worlds || [],
         books: message.data.books || [],

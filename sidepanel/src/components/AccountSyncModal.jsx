@@ -16,10 +16,12 @@ function AccountSyncModal({
   canUpgradePlan,
   onSignOut,
   onSignIn,
+  onRegister,
   helperText,
   cloudLastErrorHint
 }) {
   if (!open) return null;
+  const isAuthActionsSingle = !authEmail || !canUpgradePlan;
 
   return (
     <div className="overlay-backdrop" role="presentation" onClick={onClose}>
@@ -67,7 +69,7 @@ function AccountSyncModal({
             <div className={`account-inline-notice account-inline-notice-${accountNotice.type || 'info'}`}>{accountNotice.text}</div>
           ) : null}
 
-          <div className="toolbar-wrap">
+          <div className="account-actions-grid">
             <button type="button" className="btn-secondary" onClick={onRefreshEntitlements} disabled={isRefreshingEntitlements}>
               {isRefreshingEntitlements ? '刷新中...' : '刷新套餐'}
             </button>
@@ -80,6 +82,8 @@ function AccountSyncModal({
             >
               {isMigratingLocalData ? '迁移中...' : '迁移本机数据到云端'}
             </button>
+          </div>
+          <div className={`account-actions-grid account-actions-auth ${isAuthActionsSingle ? 'account-actions-auth-single' : ''}`}>
             {authEmail ? (
               <>
                 {canUpgradePlan ? (
@@ -92,14 +96,21 @@ function AccountSyncModal({
                 </button>
               </>
             ) : (
-              <button type="button" className="btn-primary" onClick={onSignIn}>
-                注册 / 登录
-              </button>
+              <>
+                <button type="button" className="btn-primary" onClick={onSignIn}>
+                  登录
+                </button>
+                <button type="button" className="btn-secondary" onClick={onRegister}>
+                  注册
+                </button>
+              </>
             )}
           </div>
 
-          <p className="helper-text">{helperText}</p>
-          {cloudLastErrorHint ? <p className="helper-text">{cloudLastErrorHint}</p> : null}
+          <div className="account-helper-stack">
+            <p className="helper-text">{helperText}</p>
+            {cloudLastErrorHint ? <p className="helper-text account-helper-error">{cloudLastErrorHint}</p> : null}
+          </div>
         </div>
       </section>
     </div>

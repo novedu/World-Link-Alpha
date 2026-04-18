@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String       @map("password_hash")
+  plan         String       @default("free")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  captures     Capture[]
+  entitlements Entitlement?
+  sessions     Session[]
+  worlds       World[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Entitlement {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  maxWorlds       Int      @default(3) @map("max_worlds")
+  maxEntities     Int      @default(100) @map("max_entities")
+  maxCaptures     Int      @default(50) @map("max_captures")
+  canExport       Boolean  @default(false) @map("can_export")
+  canUseAI        Boolean  @default(false) @map("can_use_ai")
+  markdownExports Int      @default(0) @map("markdown_exports")
+  jsonExports     Int      @default(0) @map("json_exports")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("entitlements")
+}
+
+model World {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  name        String
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  books       Book[]
+  entities    Entity[]
+  relations   EntityRelation[]
+  timelineEvents TimelineEvent[]
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("worlds")
+}
+
+model Book {
+  id          String            @id @default(uuid())
+  worldId     String            @map("world_id")
+  title       String
+  description String?
+  status      String            @default("active")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  usages      BookEntityUsage[]
+  world       World             @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@map("books")
+}
+
+model Entity {
+  id            String            @id @default(uuid())
+  worldId       String            @map("world_id")
+  name          String
+  type          String
+  summary       String?
+  tags          String?
+  sourceUrl     String?           @map("source_url")
+  sourceTitle   String?           @map("source_title")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  usages        BookEntityUsage[]
+  world         World             @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  relationsTo   EntityRelation[]  @relation("ToEntity")
+  relationsFrom EntityRelation[]  @relation("FromEntity")
+  timelineEvents TimelineEvent[]
+
+  @@map("entities")
+}
+
+model BookEntityUsage {
+  id        String   @id @default(uuid())
+  bookId    String   @map("book_id")
+  entityId  String   @map("entity_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, entityId])
+  @@map("book_entity_usages")
+}
+
+model EntityRelation {
+  id           String   @id @default(uuid())
+  worldId      String   @map("world_id")
+  fromEntityId String   @map("from_entity_id")
+  toEntityId   String   @map("to_entity_id")
+  type         String
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  toEntity     Entity   @relation("ToEntity", fields: [toEntityId], references: [id], onDelete: Cascade)
+  fromEntity   Entity   @relation("FromEntity", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  world        World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@map("entity_relations")
+}
+
+model TimelineEvent {
+  id          String    @id @default(uuid())
+  worldId     String    @map("world_id")
+  entityId    String    @map("entity_id")
+  eventType   String    @map("event_type")
+  title       String
+  description String?
+  timestamp   DateTime  @map("event_timestamp")
+  metadata    String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  entity      Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  world       World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@map("timeline_events")
+}
+
+model Capture {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  text        String
+  sourceUrl   String?  @map("source_url")
+  sourceTitle String?  @map("source_title")
+  status      String   @default("inbox")
+  entityId    String?  @map("entity_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("captures")
+}

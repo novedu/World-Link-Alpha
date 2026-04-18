@@ -131,6 +131,36 @@ export function useActionDialogFlow({
         return;
       }
 
+      if (actionDialog.type === 'register_cloud') {
+        const email = String(actionDialogValues.email || '').trim();
+        const password = String(actionDialogValues.password || '');
+        const confirmPassword = String(actionDialogValues.confirmPassword || '');
+        if (!email || !password || !confirmPassword) {
+          onUiMessage?.('请填写所有必填字段', 'warning');
+          setDialogSubmitting(false);
+          return;
+        }
+        if (password !== confirmPassword) {
+          onUiMessage?.('两次输入的密码不一致', 'warning');
+          setDialogSubmitting(false);
+          return;
+        }
+        const result = await sendRuntimeMessage('REGISTER_WITH_PASSWORD', {
+          email,
+          password
+        });
+        if (!result?.success) {
+          onUiMessage?.(formatRuntimeError(result, '注册失败'), 'error');
+          setDialogSubmitting(false);
+          return;
+        }
+        setAuthSession(result.session || null);
+        await refreshRuntimeContext();
+        onUiMessage?.('注册成功', 'success');
+        closeActionDialog();
+        return;
+      }
+
       if (actionDialog.type === 'migrate_local_to_cloud') {
         setIsMigratingLocalData(true);
         const result = await sendRuntimeMessage('MIGRATE_LOCAL_TO_CLOUD', {
@@ -223,6 +253,36 @@ export function useActionDialogFlow({
     });
   };
 
+  const handleRegister = async () => {
+    const ready = await ensureCloudRuntimeReady();
+    if (!ready) return;
+    openActionDialog({
+      type: 'register_cloud',
+      title: '注册账号',
+      message: '注册账号后可开启云端同步，跨设备访问你的世界资产。',
+      fields: [
+        {
+          key: 'email',
+          label: '邮箱',
+          placeholder: 'name@example.com'
+        },
+        {
+          key: 'password',
+          label: '密码',
+          type: 'password',
+          placeholder: '请输入密码'
+        },
+        {
+          key: 'confirmPassword',
+          label: '确认密码',
+          type: 'password',
+          placeholder: '请再次输入密码'
+        }
+      ],
+      confirmText: '注册'
+    });
+  };
+
   const handleMigrateLocalToCloud = async () => {
     if (isMigratingLocalData) return;
     if (!authSession?.email) {
@@ -253,6 +313,7 @@ export function useActionDialogFlow({
     handleAddWorld,
     handleAddBook,
     handleSignIn,
+    handleRegister,
     handleMigrateLocalToCloud
   };
 }
