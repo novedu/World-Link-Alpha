@@ -75,7 +75,14 @@ export function useStorageSync({ setSelectedWorldId }) {
         }
       } catch (err) {
         console.error('[Sidepanel] API 加载失败:', err);
-        setError('加载数据失败，请刷新页面重试');
+        
+        // 检查错误类型，如果是认证错误或网络错误，不显示错误信息，直接回退到本地存储
+        const isAuthError = err.message?.includes('未提供认证令牌') || err.message?.includes('401');
+        const isNetworkError = err.message?.includes('网络异常') || err.message?.includes('timeout');
+        
+        if (!isAuthError && !isNetworkError) {
+          setError('加载数据失败，请刷新页面重试');
+        }
         
         // 回退到本地存储
         try {
@@ -90,6 +97,8 @@ export function useStorageSync({ setSelectedWorldId }) {
           });
         } catch (localError) {
           console.error('[Sidepanel] 本地存储加载失败:', localError);
+          // 只有当本地存储也失败时才显示错误信息
+          setError('加载数据失败，请刷新页面重试');
         }
       } finally {
         setLoading(false);
