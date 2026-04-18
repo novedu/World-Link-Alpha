@@ -1,3 +1,6 @@
+import React from 'react';
+import SubscriptionManager from './SubscriptionManager';
+
 function AccountSyncModal({
   open,
   onClose,
@@ -22,6 +25,12 @@ function AccountSyncModal({
 }) {
   if (!open) return null;
   const isAuthActionsSingle = !authEmail || !canUpgradePlan;
+
+  // 订阅更新回调
+  const handleSubscriptionUpdated = () => {
+    // 刷新套餐信息
+    onRefreshEntitlements();
+  };
 
   return (
     <div className="overlay-backdrop" role="presentation" onClick={onClose}>
@@ -68,6 +77,13 @@ function AccountSyncModal({
           {accountNotice ? (
             <div className={`account-inline-notice account-inline-notice-${accountNotice.type || 'info'}`}>{accountNotice.text}</div>
           ) : null}
+
+          {/* 订阅管理 */}
+          {authEmail && (
+            <div className="mt-6 border-t border-gray-200 pt-6">
+              <SubscriptionManager onSubscriptionUpdated={handleSubscriptionUpdated} />
+            </div>
+          )}
 
           <div className="account-actions-grid">
             <button type="button" className="btn-secondary" onClick={onRefreshEntitlements} disabled={isRefreshingEntitlements}>

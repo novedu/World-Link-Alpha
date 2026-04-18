@@ -13,6 +13,7 @@ import entitlementRoutes from './routes/entitlements';
 import aiRoutes from './routes/ai';
 import storeRoutes from './routes/store';
 import timelineRoutes from './routes/timeline';
+import subscriptionRoutes from './routes/subscriptions';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/entitlements', entitlementRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/timeline', timelineRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // 404 处理
 app.use(notFoundHandler);

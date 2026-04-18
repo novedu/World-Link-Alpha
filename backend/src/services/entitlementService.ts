@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import * as subscriptionService from './subscriptionService';
 
 export interface EntitlementData {
   userId: string;
@@ -36,43 +37,94 @@ export async function getOrCreateEntitlement(userId: string): Promise<any> {
 }
 
 export async function checkWorldQuota(userId: string): Promise<boolean> {
-  const entitlement = await getOrCreateEntitlement(userId);
+  // 检查订阅状态
+  const subscriptionStatus = await subscriptionService.checkSubscriptionStatus(userId);
+  
+  // 根据订阅状态确定配额
+  let maxWorlds;
+  if (subscriptionStatus.isActive) {
+    const subscription = await subscriptionService.getUserSubscription(userId);
+    maxWorlds = subscription?.planId === 'free' ? 2 : 0; // 0 表示无限
+  } else {
+    maxWorlds = 2; // 未订阅或过期，使用免费版配额
+  }
+  
+  if (maxWorlds === 0) {
+    return true; // 无限配额
+  }
+
   const worldCount = await prisma.world.count({
     where: { userId },
   });
 
-  return worldCount < entitlement.maxWorlds;
+  return worldCount < maxWorlds;
 }
 
 export async function checkEntityQuota(userId: string): Promise<boolean> {
-  const entitlement = await getOrCreateEntitlement(userId);
+  // 检查订阅状态
+  const subscriptionStatus = await subscriptionService.checkSubscriptionStatus(userId);
+  
+  // 根据订阅状态确定配额
+  let maxEntities;
+  if (subscriptionStatus.isActive) {
+    const subscription = await subscriptionService.getUserSubscription(userId);
+    if (subscription?.planId === 'pro') {
+      maxEntities = 1000;
+    } else if (subscription?.planId === 'team') {
+      maxEntities = 5000;
+    } else {
+      maxEntities = 100;
+    }
+  } else {
+    maxEntities = 100; // 未订阅或过期，使用免费版配额
+  }
+
   const entityCount = await prisma.entity.count({
     where: { world: { userId } },
   });
 
-  return entityCount < entitlement.maxEntities;
+  return entityCount < maxEntities;
 }
 
 export async function checkCaptureQuota(userId: string): Promise<boolean> {
-  const entitlement = await getOrCreateEntitlement(userId);
+  // 检查订阅状态
+  const subscriptionStatus = await subscriptionService.checkSubscriptionStatus(userId);
+  
+  // 根据订阅状态确定配额
+  let maxCaptures;
+  if (subscriptionStatus.isActive) {
+    const subscription = await subscriptionService.getUserSubscription(userId);
+    if (subscription?.planId === 'pro') {
+      maxCaptures = 100;
+    } else if (subscription?.planId === 'team') {
+      maxCaptures = 500;
+    } else {
+      maxCaptures = 10;
+    }
+  } else {
+    maxCaptures = 10; // 未订阅或过期，使用免费版配额
+  }
+
   const captureCount = await prisma.capture.count({
     where: { userId },
   });
 
-  return captureCount < entitlement.maxCaptures;
+  return captureCount < maxCaptures;
 }
 
 export async function checkFeatureAccess(userId: string, feature: 'export' | 'ai'): Promise<boolean> {
-  const entitlement = await getOrCreateEntitlement(userId);
-
-  switch (feature) {
-    case 'export':
-      return entitlement.canExport;
-    case 'ai':
-      return entitlement.canUseAI;
-    default:
-      return false;
+  // 检查订阅状态
+  const subscriptionStatus = await subscriptionService.checkSubscriptionStatus(userId);
+  
+  if (!subscriptionStatus.isActive) {
+    // 未订阅或过期，只有基础功能
+    return feature === 'export'; // 免费版也可以导出
   }
+  
+  const subscription = await subscriptionService.getUserSubscription(userId);
+  
+  // Pro 和 Team 版本都可以使用所有功能
+  return true;
 }
 
 export async function updateEntitlement(userId: string, data: Partial<EntitlementData>): Promise<any> {
@@ -104,11 +156,35 @@ export async function getEntitlementWithUsage(userId: string): Promise<{
     markdown: number;
     json: number;
   };
+  subscriptionStatus: string;
+  isActive: boolean;
 }> {
-  const entitlement = await getOrCreateEntitlement(userId);
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-  });
+  // 检查订阅状态
+  const subscriptionStatus = await subscriptionService.checkSubscriptionStatus(userId);
+  const subscription = await subscriptionService.getUserSubscription(userId);
+  
+  // 根据订阅状态确定配额
+  let maxWorlds, maxEntities, maxCaptures;
+  if (subscriptionStatus.isActive) {
+    if (subscription?.planId === 'pro') {
+      maxWorlds = 0; // 0 表示无限
+      maxEntities = 1000;
+      maxCaptures = 100;
+    } else if (subscription?.planId === 'team') {
+      maxWorlds = 0;
+      maxEntities = 5000;
+      maxCaptures = 500;
+    } else {
+      maxWorlds = 2;
+      maxEntities = 100;
+      maxCaptures = 10;
+    }
+  } else {
+    // 未订阅或过期，使用免费版配额
+    maxWorlds = 2;
+    maxEntities = 100;
+    maxCaptures = 10;
+  }
 
   // 获取当前使用量
   const worldCount = await prisma.world.count({
@@ -124,11 +200,11 @@ export async function getEntitlementWithUsage(userId: string): Promise<{
   });
 
   return {
-    plan: user?.plan || 'free',
+    plan: subscription?.planId || 'free',
     limits: {
-      maxWorlds: entitlement.maxWorlds,
-      maxEntities: entitlement.maxEntities,
-      maxCaptures: entitlement.maxCaptures,
+      maxWorlds,
+      maxEntities,
+      maxCaptures,
     },
     usage: {
       worlds: worldCount,
@@ -136,12 +212,14 @@ export async function getEntitlementWithUsage(userId: string): Promise<{
       captures: captureCount,
     },
     features: {
-      canExport: entitlement.canExport,
-      canUseAI: entitlement.canUseAI,
+      canExport: true, // 所有版本都可以导出
+      canUseAI: subscriptionStatus.isActive, // 只有订阅用户可以使用 AI
     },
     exports: {
-      markdown: entitlement.markdownExports,
-      json: entitlement.jsonExports,
+      markdown: 0, // 暂时返回 0
+      json: 0, // 暂时返回 0
     },
+    subscriptionStatus: subscriptionStatus.status,
+    isActive: subscriptionStatus.isActive,
   };
 }

@@ -93,7 +93,9 @@ export function useRuntimeContext({ onUiMessage }) {
 
   const handleUpgradeLocalPlan = async () => {
     if (!authSession?.email) return;
-    onUiMessage?.('订阅中心即将上线，当前可先使用 Free 版功能', 'info');
+    // 打开账号模态框，用户可以在其中管理订阅
+    // 这里可以通过回调函数通知父组件打开模态框
+    onUiMessage?.('请在账号设置中管理您的订阅', 'info');
   };
 
   const handleRefreshEntitlements = async () => {
