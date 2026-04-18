@@ -454,6 +454,7 @@ function createCapturePanel() {
     cancelButton.addEventListener('click', closeCapturePanel);
     buttonsContainer.appendChild(cancelButton);
     const saveButton = document.createElement('button');
+    saveButton.id = 'wl-save-button';
     saveButton.type = 'button';
     saveButton.textContent = '保存';
     saveButton.style.cssText = [
@@ -465,7 +466,8 @@ function createCapturePanel() {
       'font-size:14px',
       'font-weight:500',
       'cursor:pointer',
-      'transition:all 120ms ease-in-out'
+      'transition:all 120ms ease-in-out',
+      'min-width:88px'
     ].join(';');
     saveButton.addEventListener('mouseenter', () => {
       saveButton.style.background = 'var(--primary-hover, #1D4ED8)';
@@ -585,6 +587,7 @@ function handleKeyDown(e) {
 }
 
 function saveEntity() {
+  const saveButton = document.getElementById('wl-save-button');
   // 验证
   if (!panelData.selectedWorld) {
     showError('请选择世界');
@@ -593,6 +596,14 @@ function saveEntity() {
   if (!panelData.entityName) {
     showError('请输入实体名称');
     return;
+  }
+
+  // 设置加载状态
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.textContent = '保存中...';
+    saveButton.style.opacity = '0.7';
+    saveButton.style.cursor = 'not-allowed';
   }
 
   // 准备数据
@@ -612,11 +623,25 @@ function saveEntity() {
   chrome.runtime.sendMessage(
     { type: 'SAVE_ENTITY', data: entityData },
     (response) => {
+      // 恢复按钮状态
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.style.opacity = '1';
+        saveButton.style.cursor = 'pointer';
+      }
+
       if (response && response.success) {
-        showToast(`已保存到世界「${panelData.worlds.find(w => w.id === panelData.selectedWorld)?.name || '未知'}」`);
-        closeCapturePanel();
+        const worldName = panelData.worlds.find(w => w.id === panelData.selectedWorld)?.name || '未知';
+        saveButton.textContent = '保存成功！';
+        showToast(`✅ 已保存到「${worldName}」`);
+        setTimeout(() => {
+          closeCapturePanel();
+        }, 500);
       } else {
-        showError(response?.error || '保存失败，请稍后重试');
+        saveButton.textContent = '保存';
+        const errorMsg = response?.error || '保存失败，请稍后重试';
+        showError(errorMsg);
+        console.error('[Content] Save error:', response);
       }
     }
   );
