@@ -1,6 +1,6 @@
 /* global chrome */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import './App.css';
 import WorldBookSection from './components/WorldBookSection';
 import WorldSummaryCard from './components/WorldSummaryCard';
@@ -88,6 +88,22 @@ function App() {
     handleUpgradeLocalPlan,
     handleRefreshEntitlements
   } = useRuntimeContext({ onUiMessage: showUiMessage });
+
+  // 监听认证过期消息
+  useEffect(() => {
+    const handleAuthExpired = (message) => {
+      if (message.type === 'AUTH_EXPIRED') {
+        showUiMessage('登录已过期，请重新登录', 'warning');
+        setIsAccountModalOpen(true);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleAuthExpired);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleAuthExpired);
+    };
+  }, [showUiMessage]);
 
   const {
     actionDialog,

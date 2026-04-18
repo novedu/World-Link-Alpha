@@ -47,27 +47,37 @@ export const setupResponseInterceptor = (axiosInstance: AxiosInstance) => {
       // 处理 HTTP 错误
       if (error.response) {
         // 401 处理
-        if (error.response.status === 401) {
+      if (error.response.status === 401) {
+        try {
+          // 尝试刷新 token
+          // 这里可以实现 token 刷新逻辑
+          // const newToken = await refreshToken();
+          // if (newToken) {
+          //   await setToken(newToken);
+          //   // 重新发送请求
+          //   const originalRequest = error.config;
+          //   originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          //   return axiosInstance(originalRequest);
+          // }
+          // 暂时直接清除 token
+          await clearToken();
+          // 触发登录提示
           try {
-            // 尝试刷新 token
-            // 这里可以实现 token 刷新逻辑
-            // const newToken = await refreshToken();
-            // if (newToken) {
-            //   await setToken(newToken);
-            //   // 重新发送请求
-            //   const originalRequest = error.config;
-            //   originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            //   return axiosInstance(originalRequest);
-            // }
-            // 暂时直接清除 token
-            await clearToken();
-            // 可以在这里触发登录跳转逻辑
-          } catch (refreshError) {
-            // 刷新失败，清除 token
-            await clearToken();
-            // 可以在这里触发登录跳转逻辑
+            chrome.runtime.sendMessage({ type: 'AUTH_EXPIRED' });
+          } catch (err) {
+            console.error('Error sending auth expired message:', err);
+          }
+        } catch (refreshError) {
+          // 刷新失败，清除 token
+          await clearToken();
+          // 触发登录提示
+          try {
+            chrome.runtime.sendMessage({ type: 'AUTH_EXPIRED' });
+          } catch (err) {
+            console.error('Error sending auth expired message:', err);
           }
         }
+      }
 
         // 其他错误
         const errorData = error.response.data?.error;

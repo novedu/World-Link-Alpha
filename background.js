@@ -1540,22 +1540,32 @@ async function incrementUsage(action, increment = 1) {
 }
 
 async function authorizeCaptureQuota() {
-  const entitlements = await getEffectiveEntitlements();
-  const limit = entitlements?.limits?.maxCapturesPerDay;
-  if (!isLimited(limit)) {
+  try {
+    const entitlements = await getEffectiveEntitlements();
+    const limit = entitlements?.limits?.maxCapturesPerDay;
+    if (!isLimited(limit)) {
+      return { success: true };
+    }
+
+    const usageMeter = await readUsageMeterRecord();
+    const dayKey = formatTodayKey();
+    const used = Number(usageMeter?.[dayKey]?.[USAGE_ACTION.CAPTURE_CREATE] || 0);
+    if (used >= limit) {
+      return {
+        success: false,
+        error: `今日捕获额度已用完（${limit} 次/天），请明日再试或升级 Pro`
+      };
+    }
+    return { success: true };
+  } catch (error) {
+    // 处理认证错误，直接返回成功，因为本地模式下也可以捕获
+    if (error?.code === 'auth_required' || error?.message?.includes('请先登录')) {
+      return { success: true };
+    }
+    // 其他错误也返回成功，确保捕获功能不会因为网络问题而失败
+    console.warn('Error checking capture quota:', error);
     return { success: true };
   }
-
-  const usageMeter = await readUsageMeterRecord();
-  const dayKey = formatTodayKey();
-  const used = Number(usageMeter?.[dayKey]?.[USAGE_ACTION.CAPTURE_CREATE] || 0);
-  if (used >= limit) {
-    return {
-      success: false,
-      error: `今日捕获额度已用完（${limit} 次/天），请明日再试或升级 Pro`
-    };
-  }
-  return { success: true };
 }
 
 async function authorizeExport(payload) {
@@ -3095,15 +3105,25 @@ function buildEntityRecord(input, fallback) {
 
 async function ensureEntityCreationQuota(store, isCreate) {
   if (!isCreate) return { success: true };
-  const entitlements = await getEffectiveEntitlements();
-  const maxEntities = entitlements?.limits?.maxEntities;
-  if (isLimited(maxEntities) && store.entities.length >= maxEntities) {
-    return {
-      success: false,
-      error: `当前套餐最多可管理 ${maxEntities} 个实体，请升级 Pro`
-    };
+  try {
+    const entitlements = await getEffectiveEntitlements();
+    const maxEntities = entitlements?.limits?.maxEntities;
+    if (isLimited(maxEntities) && store.entities.length >= maxEntities) {
+      return {
+        success: false,
+        error: `当前套餐最多可管理 ${maxEntities} 个实体，请升级 Pro`
+      };
+    }
+    return { success: true };
+  } catch (error) {
+    // 处理认证错误，直接返回成功，因为本地模式下也可以创建实体
+    if (error?.code === 'auth_required' || error?.message?.includes('请先登录')) {
+      return { success: true };
+    }
+    // 其他错误也返回成功，确保创建功能不会因为网络问题而失败
+    console.warn('Error checking entity creation quota:', error);
+    return { success: true };
   }
-  return { success: true };
 }
 
 async function saveEntityFromCapture(data) {
