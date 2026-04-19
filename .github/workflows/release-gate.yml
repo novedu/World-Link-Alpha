@@ -1,0 +1,49 @@
+name: Release Gate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            sidepanel/package-lock.json
+
+      - name: Install backend deps
+        run: npm --prefix backend ci
+
+      - name: Install sidepanel deps
+        run: npm --prefix sidepanel ci
+
+      - name: Run full verify
+        run: npm run verify
+
+      - name: Backup and recovery drill
+        run: npm run backup:drill
+
+      - name: Billing reconciliation (check mode)
+        run: npm run billing:reconcile
+
+      - name: Build release manifest
+        run: npm run release:manifest
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            artifacts/releases/**
+            backend/audit/**
+            backend/backups/drill-report-*.json

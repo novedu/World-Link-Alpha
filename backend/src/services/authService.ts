@@ -1,9 +1,17 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../config/database';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
 const JWT_EXPIRES_IN = '7d';
+
+if (process.env.NODE_ENV === 'production') {
+  const hasStrongSecret = Boolean(process.env.JWT_SECRET) && JWT_SECRET.length >= 32;
+  if (!hasStrongSecret) {
+    throw new Error('生产环境 JWT_SECRET 不能为空且长度至少 32 位');
+  }
+}
 
 export interface RegisterInput {
   email: string;
@@ -22,6 +30,13 @@ export interface AuthResult {
     plan: string;
   };
   token: string;
+}
+
+function createAuthToken(payload: { userId: string; email: string; plan: string }): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+    jwtid: randomUUID(),
+  });
 }
 
 export async function registerUser(input: RegisterInput): Promise<AuthResult> {
@@ -55,11 +70,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
     },
   });
 
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, plan: user.plan },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+  const token = createAuthToken({ userId: user.id, email: user.email, plan: user.plan });
 
   // 保存会话
   await prisma.session.create({
@@ -95,11 +106,7 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
     throw new Error('邮箱或密码错误');
   }
 
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, plan: user.plan },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+  const token = createAuthToken({ userId: user.id, email: user.email, plan: user.plan });
 
   // 保存会话
   await prisma.session.create({
