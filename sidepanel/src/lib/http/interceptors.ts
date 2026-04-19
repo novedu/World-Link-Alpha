@@ -1,22 +1,30 @@
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { ApiError, ApiResponse } from './types';
-import { getToken, setToken, clearToken } from './token';
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import { ApiError, type ApiResponse, type OnAuthExpiredCallback } from './types';
+import { getToken, clearToken } from './token';
+
+// 全局认证过期回调
+let onAuthExpiredCallback: OnAuthExpiredCallback = () => {};
+
+// 设置认证过期回调
+export const setOnAuthExpired = (callback: OnAuthExpiredCallback) => {
+  onAuthExpiredCallback = callback;
+};
 
 // 请求拦截器
 export const setupRequestInterceptor = (axiosInstance: AxiosInstance) => {
   axiosInstance.interceptors.request.use(
-    async (config: AxiosRequestConfig) => {
+    async (config: InternalAxiosRequestConfig) => {
+      // 确保 headers 存在
+      config.headers = config.headers || {};
+
       // 自动注入 token
       const token = await getToken();
-      if (token && config.headers) {
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // 添加 traceId
-      config.headers = {
-        ...config.headers,
-        'X-Trace-Id': generateTraceId(),
-      };
+      // 添加统一请求追踪头 x-request-id
+      config.headers['x-request-id'] = generateRequestId();
 
       return config;
     },
@@ -29,8 +37,8 @@ export const setupRequestInterceptor = (axiosInstance: AxiosInstance) => {
 // 响应拦截器
 export const setupResponseInterceptor = (axiosInstance: AxiosInstance) => {
   axiosInstance.interceptors.response.use(
-    (response: AxiosResponse<ApiResponse>) => {
-      // 处理业务成功码
+    (response: AxiosResponse<ApiResponse<unknown>>) => {
+      // 处理业务失败
       if (response.data && !response.data.success) {
         const errorData = response.data.error;
         throw new ApiError(
@@ -46,49 +54,27 @@ export const setupResponseInterceptor = (axiosInstance: AxiosInstance) => {
     async (error) => {
       // 处理 HTTP 错误
       if (error.response) {
+        const { status, data } = error.response;
+
         // 401 处理
-      if (error.response.status === 401) {
-        try {
-          // 尝试刷新 token
-          // 这里可以实现 token 刷新逻辑
-          // const newToken = await refreshToken();
-          // if (newToken) {
-          //   await setToken(newToken);
-          //   // 重新发送请求
-          //   const originalRequest = error.config;
-          //   originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          //   return axiosInstance(originalRequest);
-          // }
-          // 暂时直接清除 token
-          await clearToken();
-          // 触发登录提示
+        if (status === 401) {
           try {
-            chrome.runtime.sendMessage({ type: 'AUTH_EXPIRED' });
-          } catch (err) {
-            console.error('Error sending auth expired message:', err);
-          }
-        } catch (refreshError) {
-          // 刷新失败，清除 token
-          await clearToken();
-          // 触发登录提示
-          try {
-            chrome.runtime.sendMessage({ type: 'AUTH_EXPIRED' });
-          } catch (err) {
-            console.error('Error sending auth expired message:', err);
+            // 清除 token
+            await clearToken();
+            // 触发认证过期回调
+            if (onAuthExpiredCallback) {
+              await Promise.resolve(onAuthExpiredCallback());
+            }
+          } catch (clearError) {
+            console.error('Error handling 401:', clearError);
           }
         }
-      }
 
-        // 其他错误
-        const errorData = error.response.data?.error;
+        // 构造错误信息
+        const errorData = data?.error;
         const errorMessage = errorData?.message || error.message || '网络错误';
         const errorCode = errorData?.code || 'HTTP_ERROR';
-        throw new ApiError(
-          errorMessage,
-          errorCode,
-          error.response.status,
-          error.response.data
-        );
+        throw new ApiError(errorMessage, errorCode, status, data);
       }
 
       // 网络错误
@@ -106,7 +92,7 @@ export const setupResponseInterceptor = (axiosInstance: AxiosInstance) => {
   );
 };
 
-// 生成 traceId
-const generateTraceId = (): string => {
+// 生成 requestId
+const generateRequestId = (): string => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };

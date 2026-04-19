@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { entityAssist, entityConflict, reportAiFeedback } from '../services/aiService';
+import { entityAssist, entityConflict, reportAiFeedback, generateImage } from '../services/aiService';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();

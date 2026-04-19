@@ -4,6 +4,39 @@ import * as worldService from '../services/worldService';
 import * as bookService from '../services/bookService';
 import * as entityService from '../services/entityService';
 import * as captureService from '../services/captureService';
+import type { World, Book, Entity, Capture } from '@prisma/client';
+
+interface StoreResults {
+  worlds?: World[];
+  books?: Book[];
+  entities?: Entity[];
+  capturedList?: Capture[];
+}
+
+interface ImportResults {
+  imported: {
+    worlds: number;
+    books: number;
+    entities: number;
+    capturedList: number;
+  };
+}
+
+interface PatchResults {
+  updated: {
+    worlds: number;
+    books: number;
+    entities: number;
+    capturedList: number;
+  };
+}
+
+interface StoreData {
+  worlds?: Array<Partial<World>>;
+  books?: Array<Partial<Book>>;
+  entities?: Array<Partial<Entity>>;
+  capturedList?: Array<Partial<Capture>>;
+}
 
 const router = Router();
 
@@ -11,7 +44,7 @@ const router = Router();
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { worlds, books, entities, capturedList } = req.body;
-    const results: any = {};
+    const results: StoreResults = {};
 
     // 处理世界数据
     if (worlds) {
@@ -158,8 +191,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response, next: Ne
       captureService.getCapturesByUser(req.user!.userId)
     ]);
 
-    let allBooks: any[] = [];
-    let allEntities: any[] = [];
+    let allBooks: Book[] = [];
+    let allEntities: Entity[] = [];
 
     // 获取所有世界的书籍和实体
     if (worlds.length > 0) {
@@ -209,7 +242,7 @@ router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, n
     }
 
     const { worlds = [], books = [], entities = [], capturedList = [] } = store;
-    const results: any = {
+    const results: ImportResults = {
       imported: {
         worlds: 0,
         books: 0,
@@ -233,8 +266,8 @@ router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, n
           });
         }
         results.imported.worlds++;
-      } catch (error: any) {
-        console.warn('[Store Import] world import failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Import] world import failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -254,8 +287,8 @@ router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, n
           });
         }
         results.imported.books++;
-      } catch (error: any) {
-        console.warn('[Store Import] book import failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Import] book import failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -282,8 +315,8 @@ router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, n
           });
         }
         results.imported.entities++;
-      } catch (error: any) {
-        console.warn('[Store Import] entity import failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Import] entity import failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -303,8 +336,8 @@ router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, n
           });
         }
         results.imported.capturedList++;
-      } catch (error: any) {
-        console.warn('[Store Import] capture import failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Import] capture import failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -339,7 +372,7 @@ router.patch('/', authMiddleware, async (req: AuthRequest, res: Response, next: 
     }
 
     const { worlds = [], books = [], entities = [], capturedList = [] } = partial;
-    const results: any = {
+    const results: PatchResults = {
       updated: {
         worlds: 0,
         books: 0,
@@ -357,8 +390,8 @@ router.patch('/', authMiddleware, async (req: AuthRequest, res: Response, next: 
           });
           results.updated.worlds++;
         }
-      } catch (error: any) {
-        console.warn('[Store Patch] world update failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Patch] world update failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -372,8 +405,8 @@ router.patch('/', authMiddleware, async (req: AuthRequest, res: Response, next: 
           });
           results.updated.books++;
         }
-      } catch (error: any) {
-        console.warn('[Store Patch] book update failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Patch] book update failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -390,8 +423,8 @@ router.patch('/', authMiddleware, async (req: AuthRequest, res: Response, next: 
           });
           results.updated.entities++;
         }
-      } catch (error: any) {
-        console.warn('[Store Patch] entity update failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Patch] entity update failed:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -404,8 +437,8 @@ router.patch('/', authMiddleware, async (req: AuthRequest, res: Response, next: 
           });
           results.updated.capturedList++;
         }
-      } catch (error: any) {
-        console.warn('[Store Patch] capture update failed:', error?.message || error);
+      } catch (error: unknown) {
+        console.warn('[Store Patch] capture update failed:', error instanceof Error ? error.message : String(error));
       }
     }
 

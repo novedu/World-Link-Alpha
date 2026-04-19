@@ -1,4 +1,5 @@
 import { http } from '../lib/http/client';
+import type { SubscriptionPlanId, SubscriptionStatus as SharedSubscriptionStatus } from '../../../shared/types';
 
 // 订阅计划接口
 export interface SubscriptionPlan {
@@ -15,10 +16,10 @@ export interface SubscriptionPlan {
   };
 }
 
-// 订阅状态
-export type SubscriptionStatus = 'active' | 'canceled' | 'expired' | 'trialing';
+// 复用共享订阅状态（扩展前端所需状态）
+export type SubscriptionStatus = SharedSubscriptionStatus | 'canceled' | 'trialing';
 
-// 订阅信息
+// 订阅信息（扩展前端所需字段）
 export interface Subscription {
   id: string;
   userId: string;

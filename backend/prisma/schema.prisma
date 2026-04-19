@@ -18,8 +18,28 @@ model User {
   entitlements Entitlement?
   sessions     Session[]
   worlds       World[]
+  subscription Subscription?
 
   @@map("users")
+}
+
+model Subscription {
+  id                String       @id @default(uuid())
+  userId            String       @unique @map("user_id")
+  planId            String       @map("plan_id")
+  status            String       @default("active")
+  startDate         DateTime     @default(now()) @map("start_date")
+  endDate           DateTime     @map("end_date")
+  nextBillingDate   DateTime?    @map("next_billing_date")
+  cancelAtPeriodEnd Boolean      @default(false) @map("cancel_at_period_end")
+  price             Float?       @default(0)
+  currency          String?      @default("CNY")
+  paymentMethod     String?      @map("payment_method")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
 }
 
 model Session {

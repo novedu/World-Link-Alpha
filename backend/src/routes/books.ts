@@ -1,6 +1,7 @@
 import { Router, Response, NextFunction } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { getFieldErrors } from '../utils/validation';
 import * as bookService from '../services/bookService';
 
 const router = Router();
@@ -20,10 +21,7 @@ router.get(
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -66,10 +64,7 @@ router.post(
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -109,10 +104,7 @@ router.get(
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -125,7 +117,15 @@ router.get(
       if (!book) {
         return res.status(404).json({
           success: false,
-          error: '书项目不存在',
+          error: {
+            code: 'NOT_FOUND',
+            message: '书项目不存在',
+            details: {},
+          },
+          meta: {
+            requestId: req.headers['x-request-id'] as string || '',
+            timestamp: new Date().toISOString(),
+          },
         });
       }
 
@@ -159,10 +159,7 @@ router.put(
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -202,10 +199,11 @@ router.delete(
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors: getFieldErrors(errors.array())
+              
+              
+              
+            
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -240,10 +238,11 @@ router.get(
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors: getFieldErrors(errors.array())
+              
+              
+              
+            
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',

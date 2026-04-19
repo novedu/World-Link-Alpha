@@ -1,12 +1,13 @@
 import axios from 'axios';
+import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getHttpConfig } from './config';
-import { setupRequestInterceptor, setupResponseInterceptor } from './interceptors';
+import { setupRequestInterceptor, setupResponseInterceptor, setOnAuthExpired } from './interceptors';
 import type { ApiResponse } from './types';
 
 // 创建 axios 实例
-const createAxiosInstance = () => {
+const createAxiosInstance = (): AxiosInstance => {
   const config = getHttpConfig();
-  
+
   const instance = axios.create({
     baseURL: config.baseURL,
     timeout: config.timeout,
@@ -25,16 +26,14 @@ const createAxiosInstance = () => {
 export const axiosClient = createAxiosInstance();
 
 // 封装请求方法
-export const request = async <T = any>(
-  config: any
-): Promise<ApiResponse<T>> => {
+export const request = async <T = unknown>(config: AxiosRequestConfig): Promise<ApiResponse<T>> => {
   const response = await axiosClient(config);
-  return response.data;
+  return response.data as ApiResponse<T>;
 };
 
 // 导出常用请求方法
 export const http = {
-  get: <T = any>(url: string, params?: any, config?: any) => {
+  get: <T = unknown>(url: string, params?: unknown, config?: AxiosRequestConfig) => {
     return request<T>({
       method: 'GET',
       url,
@@ -43,7 +42,7 @@ export const http = {
     });
   },
 
-  post: <T = any>(url: string, data?: any, config?: any) => {
+  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
     return request<T>({
       method: 'POST',
       url,
@@ -52,7 +51,7 @@ export const http = {
     });
   },
 
-  put: <T = any>(url: string, data?: any, config?: any) => {
+  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
     return request<T>({
       method: 'PUT',
       url,
@@ -61,7 +60,7 @@ export const http = {
     });
   },
 
-  delete: <T = any>(url: string, config?: any) => {
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig) => {
     return request<T>({
       method: 'DELETE',
       url,
@@ -69,7 +68,7 @@ export const http = {
     });
   },
 
-  patch: <T = any>(url: string, data?: any, config?: any) => {
+  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
     return request<T>({
       method: 'PATCH',
       url,
@@ -78,3 +77,6 @@ export const http = {
     });
   },
 };
+
+// 导出设置认证过期回调的方法
+export { setOnAuthExpired };

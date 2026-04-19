@@ -16,6 +16,16 @@
   前端工程规范、模块化边界与 PR 自检清单
 - `prd/plugin-to-web-migration.md`  
   插件形态升级到网页形态的分阶段迁移方案（架构、风险、验收）
+- `prd/web-admin-evolution-roadmap.md`
+  Web/后台管理演进蓝图（非微前端策略、触发节点、阶段目标与验收门槛）
+- `prd/e2e-acceptance-checklist.md`
+  发版前端到端验收清单（云端/套餐/AI/时间轴/生图）
+- `prd/testing-strategy-and-release-gate.md`
+  测试策略与发布门禁（你 + Trae 协同分工、测试分层、Go/No-Go 标准）
+- `prd/testing-asset-register-template.md`
+  测试资产台账模板（Case ID、优先级、执行方式、阻断发布字段）
+- `prd/testing-asset-register-round1-2026-04-19.md`
+  首轮测试资产台账执行版（自动化基线结果、手工 E2E 待执行项、当前放行结论）
 - `prd/readany-overlap-analysis.md`
   ReadAny 能力重叠分析与差异化定位建议
 

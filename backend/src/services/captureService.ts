@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import * as entitlementService from './entitlementService';
+import type { Prisma } from '@prisma/client';
 
 export interface CreateCaptureInput {
   userId: string;
@@ -18,7 +19,7 @@ export async function getCapturesByUser(userId: string, filters?: {
   sourceDomain?: string;
   timeRange?: string;
 }) {
-  const where: any = { userId };
+  const where: Prisma.CaptureWhereInput = { userId };
 
   if (filters?.status) {
     where.status = filters.status;

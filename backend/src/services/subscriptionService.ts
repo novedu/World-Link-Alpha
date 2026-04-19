@@ -108,21 +108,27 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
 // 获取用户订阅信息
 export async function getUserSubscription(userId: string): Promise<Subscription | null> {
   try {
-    // 这里应该从数据库获取订阅信息
-    // 暂时返回模拟数据
-    const mockSubscription: Subscription = {
-      id: 'sub_123',
-      userId,
-      planId: 'pro',
-      status: 'active',
-      startDate: new Date('2026-01-01'),
-      endDate: new Date('2026-12-31'),
-      nextBillingDate: new Date('2026-05-01'),
-      cancelAtPeriodEnd: false,
-      plan: SUBSCRIPTION_PLANS.find(p => p.id === 'pro')!
-    };
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId }
+    });
+
+    if (!subscription) {
+      return null;
+    }
+
+    const plan = SUBSCRIPTION_PLANS.find(p => p.id === subscription.planId);
     
-    return mockSubscription;
+    return {
+      id: subscription.id,
+      userId: subscription.userId,
+      planId: subscription.planId,
+      status: subscription.status as SubscriptionStatus,
+      startDate: subscription.startDate,
+      endDate: subscription.endDate,
+      nextBillingDate: subscription.nextBillingDate,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      plan: plan || SUBSCRIPTION_PLANS[0]
+    };
   } catch (error) {
     console.error('Error getting user subscription:', error);
     throw error;
@@ -136,22 +142,57 @@ export async function createSubscription(userId: string, planId: string, payment
     if (!plan) {
       throw new Error('Invalid plan ID');
     }
-    
-    // 这里应该处理支付和创建订阅记录
-    // 暂时返回模拟数据
-    const subscription: Subscription = {
-      id: `sub_${Date.now()}`,
-      userId,
-      planId,
-      status: 'active',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30天后
-      nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      cancelAtPeriodEnd: false,
+
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 1);
+
+    // 创建或更新订阅
+    const subscription = await prisma.subscription.upsert({
+      where: { userId },
+      update: {
+        planId,
+        status: 'active',
+        endDate,
+        nextBillingDate: endDate,
+        cancelAtPeriodEnd: false,
+        price: plan.price,
+        paymentMethod,
+        updatedAt: new Date()
+      },
+      create: {
+        userId,
+        planId,
+        status: 'active',
+        endDate,
+        nextBillingDate: endDate,
+        price: plan.price,
+        paymentMethod
+      }
+    });
+
+    // 更新用户的 plan 字段
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        plan: planId,
+        updatedAt: new Date()
+      }
+    });
+
+    // 更新用户的 entitlements
+    await updateEntitlementsByPlan(userId, planId);
+
+    return {
+      id: subscription.id,
+      userId: subscription.userId,
+      planId: subscription.planId,
+      status: subscription.status as SubscriptionStatus,
+      startDate: subscription.startDate,
+      endDate: subscription.endDate,
+      nextBillingDate: subscription.nextBillingDate,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       plan
     };
-    
-    return subscription;
   } catch (error) {
     console.error('Error creating subscription:', error);
     throw error;
@@ -161,11 +202,29 @@ export async function createSubscription(userId: string, planId: string, payment
 // 取消订阅
 export async function cancelSubscription(userId: string): Promise<{ success: boolean; message: string }> {
   try {
-    // 这里应该处理取消订阅的逻辑
-    // 暂时返回成功
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId }
+    });
+
+    if (!subscription) {
+      return {
+        success: false,
+        message: '未找到订阅'
+      };
+    }
+
+    // 标记为取消（到期后自动降级）
+    await prisma.subscription.update({
+      where: { userId },
+      data: {
+        cancelAtPeriodEnd: true,
+        updatedAt: new Date()
+      }
+    });
+
     return {
       success: true,
-      message: '订阅已成功取消'
+      message: '订阅已成功取消，将在到期后停止'
     };
   } catch (error) {
     console.error('Error canceling subscription:', error);
@@ -176,21 +235,45 @@ export async function cancelSubscription(userId: string): Promise<{ success: boo
 // 续费订阅
 export async function renewSubscription(userId: string, paymentMethod: string): Promise<Subscription> {
   try {
-    // 这里应该处理续费逻辑
-    // 暂时返回模拟数据
-    const subscription: Subscription = {
-      id: `sub_${Date.now()}`,
-      userId,
-      planId: 'pro',
-      status: 'active',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      cancelAtPeriodEnd: false,
-      plan: SUBSCRIPTION_PLANS.find(p => p.id === 'pro')!
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId }
+    });
+
+    if (!subscription) {
+      throw new Error('未找到订阅');
+    }
+
+    const plan = SUBSCRIPTION_PLANS.find(p => p.id === subscription.planId);
+    if (!plan) {
+      throw new Error('无效的订阅计划');
+    }
+
+    const endDate = new Date(subscription.endDate);
+    endDate.setMonth(endDate.getMonth() + 1);
+
+    const updatedSubscription = await prisma.subscription.update({
+      where: { userId },
+      data: {
+        status: 'active',
+        endDate,
+        nextBillingDate: endDate,
+        cancelAtPeriodEnd: false,
+        paymentMethod,
+        updatedAt: new Date()
+      }
+    });
+
+    return {
+      id: updatedSubscription.id,
+      userId: updatedSubscription.userId,
+      planId: updatedSubscription.planId,
+      status: updatedSubscription.status as SubscriptionStatus,
+      startDate: updatedSubscription.startDate,
+      endDate: updatedSubscription.endDate,
+      nextBillingDate: updatedSubscription.nextBillingDate,
+      cancelAtPeriodEnd: updatedSubscription.cancelAtPeriodEnd,
+      plan
     };
-    
-    return subscription;
   } catch (error) {
     console.error('Error renewing subscription:', error);
     throw error;
@@ -200,26 +283,37 @@ export async function renewSubscription(userId: string, paymentMethod: string): 
 // 检查订阅状态
 export async function checkSubscriptionStatus(userId: string): Promise<{ status: SubscriptionStatus; isActive: boolean }> {
   try {
-    const subscription = await getUserSubscription(userId);
-    
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId }
+    });
+
     if (!subscription) {
       return {
         status: 'expired',
         isActive: false
       };
     }
-    
+
     const now = new Date();
     if (subscription.endDate < now) {
+      // 订阅已过期，降级到 Free
+      await downgradeToFree(userId);
       return {
         status: 'expired',
         isActive: false
       };
     }
-    
+
+    if (subscription.status !== 'active') {
+      return {
+        status: subscription.status as SubscriptionStatus,
+        isActive: false
+      };
+    }
+
     return {
-      status: subscription.status,
-      isActive: subscription.status === 'active' || subscription.status === 'trialing'
+      status: subscription.status as SubscriptionStatus,
+      isActive: true
     };
   } catch (error) {
     console.error('Error checking subscription status:', error);
@@ -227,18 +321,81 @@ export async function checkSubscriptionStatus(userId: string): Promise<{ status:
   }
 }
 
+// 降级到 Free
+async function downgradeToFree(userId: string) {
+  try {
+    // 更新订阅状态
+    await prisma.subscription.update({
+      where: { userId },
+      data: {
+        status: 'expired',
+        updatedAt: new Date()
+      }
+    });
+
+    // 更新用户的 plan 字段
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        plan: 'free',
+        updatedAt: new Date()
+      }
+    });
+
+    // 更新 entitlements
+    await updateEntitlementsByPlan(userId, 'free');
+  } catch (error) {
+    console.error('Error downgrading to free:', error);
+  }
+}
+
+// 根据订阅计划更新 entitlements
+async function updateEntitlementsByPlan(userId: string, planId: string) {
+  try {
+    const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
+    if (!plan) return;
+
+    const canExport = planId !== 'free';
+    const canUseAI = planId !== 'free';
+
+    await prisma.entitlement.upsert({
+      where: { userId },
+      update: {
+        maxWorlds: plan.limits.maxWorlds === 0 ? 99999 : plan.limits.maxWorlds,
+        maxEntities: plan.limits.maxEntities,
+        maxCaptures: plan.limits.maxCapturesPerDay,
+        canExport,
+        canUseAI,
+        updatedAt: new Date()
+      },
+      create: {
+        userId,
+        maxWorlds: plan.limits.maxWorlds === 0 ? 99999 : plan.limits.maxWorlds,
+        maxEntities: plan.limits.maxEntities,
+        maxCaptures: plan.limits.maxCapturesPerDay,
+        canExport,
+        canUseAI
+      }
+    });
+  } catch (error) {
+    console.error('Error updating entitlements:', error);
+  }
+}
+
 // 获取订阅期限
 export async function getSubscriptionPeriod(userId: string): Promise<{ startDate: Date; endDate: Date; daysRemaining: number } | null> {
   try {
-    const subscription = await getUserSubscription(userId);
-    
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId }
+    });
+
     if (!subscription) {
       return null;
     }
-    
+
     const now = new Date();
-    const daysRemaining = Math.max(0, Math.floor((subscription.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
-    
+    const daysRemaining = Math.max(0, Math.floor((subscription.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
     return {
       startDate: subscription.startDate,
       endDate: subscription.endDate,

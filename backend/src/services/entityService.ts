@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import * as entitlementService from './entitlementService';
+import type { Prisma } from '@prisma/client';
 
 export interface CreateEntityInput {
   worldId: string;
@@ -160,7 +161,7 @@ export async function searchEntities(
   type?: string,
   tags?: string[]
 ) {
-  const where: any = {
+  const where: Prisma.EntityWhereInput = {
     world: { userId },
   };
 
@@ -173,15 +174,16 @@ export async function searchEntities(
   }
 
   if (tags && tags.length > 0) {
+    // 由于 tags 是逗号分隔的字符串，用 contains 查找
     where.tags = {
-      hasSome: tags,
+      contains: tags.join(','),
     };
   }
 
   if (query) {
     where.OR = [
-      { name: { contains: query, mode: 'insensitive' } },
-      { summary: { contains: query, mode: 'insensitive' } },
+      { name: { contains: query } },
+      { summary: { contains: query } },
     ];
   }
 

@@ -1,0 +1,23 @@
+{
+  "name": "world-link-alpha",
+  "version": "1.0.0",
+  "description": "",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:sidepanel": "cd sidepanel && npm run lint",
+    "lint": "npm run lint:backend && npm run lint:sidepanel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/novedu/World-Link-Alpha.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/novedu/World-Link-Alpha/issues"
+  },
+  "homepage": "https://github.com/novedu/World-Link-Alpha#readme"
+}

@@ -1,33 +1,34 @@
 import { Router, Response, NextFunction } from 'express';
-import { body, validationResult } from 'express-validator';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import * as authService from '../services/authService';
+import { registerSchema, loginSchema } from '../schemas/auth';
+import { getFieldErrors } from '../utils/validation';
+import type { ZodError, ZodIssue } from 'zod';
 
 const router = Router();
 
-// 注册
+// 注册（使用 Zod 验证）
 router.post(
   '/register',
-  [
-    body('email').isEmail().normalizeEmail().withMessage('请输入有效的邮箱'),
-    body('password')
-      .isLength({ min: 6 })
-      .withMessage('密码长度至少为6位'),
-  ],
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
+      const result = registerSchema.safeParse(req.body);
+      if (!result.success) {
+        const fieldErrors = getFieldErrors(
+          (result.error as ZodError).issues.map(
+            (issue: ZodIssue) => ({
+              path: issue.path.join('.'),
+              msg: issue.message
+            })
+          )
+        );
         return res.status(400).json({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -36,10 +37,13 @@ router.post(
         });
       }
 
-      const result = await authService.registerUser(req.body);
+      const authResult = await authService.registerUser({
+        email: result.data.email,
+        password: result.data.password
+      });
       res.json({
         success: true,
-        data: result,
+        data: authResult,
       });
     } catch (error) {
       next(error);
@@ -47,27 +51,28 @@ router.post(
   }
 );
 
-// 登录
+// 登录（使用 Zod 验证）
 router.post(
   '/login',
-  [
-    body('email').isEmail().normalizeEmail().withMessage('请输入有效的邮箱'),
-    body('password').notEmpty().withMessage('请输入密码'),
-  ],
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
+      const result = loginSchema.safeParse(req.body);
+      if (!result.success) {
+        const fieldErrors = getFieldErrors(
+          (result.error as ZodError).issues.map(
+            (issue: ZodIssue) => ({
+              path: issue.path.join('.'),
+              msg: issue.message
+            })
+          )
+        );
         return res.status(400).json({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: '请求参数校验失败',
             details: {},
-            fieldErrors: errors.array().reduce((acc, err) => {
-              acc[err.path || 'unknown'] = err.msg;
-              return acc;
-            }, {})
+            fieldErrors
           },
           meta: {
             requestId: req.headers['x-request-id'] as string || '',
@@ -76,10 +81,13 @@ router.post(
         });
       }
 
-      const result = await authService.loginUser(req.body);
+      const authResult = await authService.loginUser({
+        email: result.data.email,
+        password: result.data.password
+      });
       res.json({
         success: true,
-        data: result,
+        data: authResult,
       });
     } catch (error) {
       next(error);

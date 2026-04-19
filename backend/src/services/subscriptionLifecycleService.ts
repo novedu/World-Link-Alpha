@@ -3,6 +3,15 @@ import * as subscriptionService from './subscriptionService';
 
 const prisma = new PrismaClient();
 
+export interface SubscriptionHistory {
+  id: string;
+  planId: string;
+  startDate: Date;
+  endDate: Date;
+  status: string;
+  amount: number;
+}
+
 // 订阅生命周期服务
 export const subscriptionLifecycleService = {
   // 处理过期订阅
@@ -93,7 +102,7 @@ export const subscriptionLifecycleService = {
   },
 
   // 获取订阅历史
-  getSubscriptionHistory: async (userId: string): Promise<any[]> => {
+  getSubscriptionHistory: async (userId: string): Promise<SubscriptionHistory[]> => {
     try {
       // 这里应该从数据库获取用户的订阅历史
       // 暂时返回模拟数据

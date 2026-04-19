@@ -62,7 +62,7 @@ function TimelineSection({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await http.get(`/v1/timeline/worlds/${worldId}/events`);
+      const response = await http.get(`/timeline/worlds/${worldId}/events`);
       if (response.success && response.data) {
         setEvents(response.data);
       }
@@ -78,7 +78,7 @@ function TimelineSection({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await http.get(`/v1/timeline/entities/${entityId}/events`);
+      const response = await http.get(`/timeline/entities/${entityId}/events`);
       if (response.success && response.data) {
         setEvents(response.data);
       }
@@ -106,7 +106,7 @@ function TimelineSection({
         timestamp: newEvent.timestamp
       };
 
-      const response = await http.post('/v1/timeline/events', eventData);
+      const response = await http.post('/timeline/events', eventData);
       if (response.success && response.data) {
         setEvents(prev => [response.data, ...prev]);
         setNewEvent({
@@ -131,7 +131,7 @@ function TimelineSection({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await http.delete(`/v1/timeline/events/${eventId}`);
+      const response = await http.delete(`/timeline/events/${eventId}`);
       if (response.success) {
         setEvents(prev => prev.filter(event => event.id !== eventId));
       }

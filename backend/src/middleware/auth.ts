@@ -20,7 +20,12 @@ export async function authMiddleware(
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       res.status(401).json({
         success: false,
-        error: '未提供认证令牌',
+        error: {
+          code: 'MISSING_TOKEN',
+          message: '未提供认证令牌',
+          details: {},
+          fieldErrors: {}
+        },
       });
       return;
     }
@@ -31,7 +36,12 @@ export async function authMiddleware(
     if (!decoded) {
       res.status(401).json({
         success: false,
-        error: '令牌无效或已过期',
+        error: {
+          code: 'INVALID_TOKEN',
+          message: '令牌无效或已过期',
+          details: {},
+          fieldErrors: {}
+        },
       });
       return;
     }
@@ -41,7 +51,12 @@ export async function authMiddleware(
   } catch (error) {
     res.status(401).json({
       success: false,
-      error: '认证失败',
+      error: {
+        code: 'AUTH_ERROR',
+        message: '认证失败',
+        details: {},
+        fieldErrors: {}
+      },
     });
   }
 }

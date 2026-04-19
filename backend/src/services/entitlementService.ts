@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import * as subscriptionService from './subscriptionService';
+import type { Entitlement } from '@prisma/client';
 
 export interface EntitlementData {
   userId: string;
@@ -12,7 +13,7 @@ export interface EntitlementData {
   jsonExports?: number;
 }
 
-export async function getOrCreateEntitlement(userId: string): Promise<any> {
+export async function getOrCreateEntitlement(userId: string): Promise<Entitlement> {
   let entitlement = await prisma.entitlement.findUnique({
     where: { userId },
   });
@@ -127,7 +128,7 @@ export async function checkFeatureAccess(userId: string, feature: 'export' | 'ai
   return true;
 }
 
-export async function updateEntitlement(userId: string, data: Partial<EntitlementData>): Promise<any> {
+export async function updateEntitlement(userId: string, data: Partial<EntitlementData>): Promise<Entitlement> {
   const entitlement = await getOrCreateEntitlement(userId);
 
   return prisma.entitlement.update({

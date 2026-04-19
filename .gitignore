@@ -12,6 +12,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies - Root
+node_modules/
+
 # Dependencies - Backend
 backend/node_modules/
 
@@ -19,6 +22,7 @@ backend/node_modules/
 sidepanel/node_modules/
 
 # Build outputs
+backend/dist/
 sidepanel/dist/
 dist-ssr/
 
@@ -41,7 +45,6 @@ dist-ssr/
 *.swp
 *.swo
 *~
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
