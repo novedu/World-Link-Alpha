@@ -60,6 +60,11 @@ dist-ssr/
 # Test coverage
 coverage/
 
+# Ops artifacts
+backend/backups/
+backend/audit/
+artifacts/
+
 # OS generated files
 Thumbs.db
 ehthumbs.db
