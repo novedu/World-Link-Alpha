@@ -26,6 +26,10 @@ export async function authMiddleware(
           details: {},
           fieldErrors: {}
         },
+        meta: {
+          requestId: req.requestId || '',
+          timestamp: new Date().toISOString()
+        }
       });
       return;
     }
@@ -42,13 +46,17 @@ export async function authMiddleware(
           details: {},
           fieldErrors: {}
         },
+        meta: {
+          requestId: req.requestId || '',
+          timestamp: new Date().toISOString()
+        }
       });
       return;
     }
 
     req.user = decoded;
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({
       success: false,
       error: {
@@ -57,6 +65,10 @@ export async function authMiddleware(
         details: {},
         fieldErrors: {}
       },
+      meta: {
+        requestId: req.requestId || '',
+        timestamp: new Date().toISOString()
+      }
     });
   }
 }

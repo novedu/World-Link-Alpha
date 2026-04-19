@@ -224,3 +224,17 @@
   - `success`: boolean - 操作是否成功
   - `entitlements`: object - 权限信息
   - `error`: string - 错误信息（失败时）
+
+## 11. 可观测性接口
+
+### 11.1 获取服务指标快照
+- **接口路径**: `GET /api/observability/metrics`
+- **鉴权要求**: 需要登录（Bearer Token）
+- **响应数据**:
+  - `success`: boolean
+  - `data.startedAt`: string - 指标采集启动时间
+  - `data.uptimeSeconds`: number - 进程存活秒数
+  - `data.totalRequests`: number - 累计请求数
+  - `data.statusBuckets`: object - 2xx/3xx/4xx/5xx 计数
+  - `data.routes`: array - 路由粒度统计（count/errorCount/avgLatencyMs/maxLatencyMs）
+  - `meta.requestId`: string - 追踪 ID

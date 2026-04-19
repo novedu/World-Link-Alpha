@@ -9,7 +9,7 @@ export function errorHandler(
   err: ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) {
   console.error('[Error]', err);
 
@@ -25,7 +25,7 @@ export function errorHandler(
       fieldErrors: {}
     },
     meta: {
-      requestId: req.headers['x-request-id'] as string || '',
+      requestId: req.requestId || '',
       timestamp: new Date().toISOString()
     }
   });
@@ -41,7 +41,7 @@ export function notFoundHandler(req: Request, res: Response) {
       fieldErrors: {}
     },
     meta: {
-      requestId: req.headers['x-request-id'] as string || '',
+      requestId: req.requestId || '',
       timestamp: new Date().toISOString()
     }
   });

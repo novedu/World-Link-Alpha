@@ -28,7 +28,7 @@ router.get(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -72,7 +72,7 @@ router.post(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -113,7 +113,7 @@ router.get(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -130,7 +130,7 @@ router.get(
             fieldErrors: {}
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -168,7 +168,7 @@ router.put(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -211,7 +211,7 @@ router.delete(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -249,7 +249,7 @@ router.post(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });

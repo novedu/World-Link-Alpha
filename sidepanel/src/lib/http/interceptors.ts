@@ -38,6 +38,14 @@ export const setupRequestInterceptor = (axiosInstance: AxiosInstance) => {
 export const setupResponseInterceptor = (axiosInstance: AxiosInstance) => {
   axiosInstance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse<unknown>>) => {
+      const responseRequestId = String(response.headers?.['x-request-id'] || '').trim();
+      if (responseRequestId && response.data) {
+        response.data.meta = {
+          ...(response.data.meta || {}),
+          requestId: response.data.meta?.requestId || responseRequestId,
+        };
+      }
+
       // 处理业务失败
       if (response.data && !response.data.success) {
         const errorData = response.data.error;
@@ -94,5 +102,8 @@ export const setupResponseInterceptor = (axiosInstance: AxiosInstance) => {
 
 // 生成 requestId
 const generateRequestId = (): string => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };

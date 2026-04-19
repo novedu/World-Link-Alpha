@@ -31,7 +31,7 @@ router.post(
             fieldErrors
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -75,7 +75,7 @@ router.post(
             fieldErrors
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
