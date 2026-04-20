@@ -11,7 +11,7 @@
 
 ### 0.1 扫描步骤
 
-1. 对照 `prd/TODO.md` 查目标事项当前状态（`todo/in_progress/blocked/done`）。
+1. 对照 `docs/prd/TODO.md` 查目标事项当前状态（`todo/in_progress/blocked/done`）。
 2. 检查该事项 DoD 是否已被证据证明达成（仪表盘、截图、日志、报告）。
 3. 若事项已 `done` 且证据充分，禁止重复开发，直接推进下一事项。
 4. 若事项 `partial` 或证据不足，先补证据或补缺口，不得跳过。
@@ -30,11 +30,11 @@
 
 ## 1. 周排期（W1-W3）
 
-W1 日执行细化见：`prd/score-90-w1-daily-plan.md`。
-W2 日执行细化见：`prd/score-90-w2-daily-plan.md`。
-W3 日执行细化见：`prd/score-90-w3-daily-plan.md`。
-周复盘统一模板见：`prd/score-90-weekly-review-template.md`。
-执行前扫描台账（首轮）见：`prd/score-90-pre-scan-register-round1-2026-04-19.md`。
+W1 日执行细化见：`docs/prd/score-90-w1-daily-plan.md`。
+W2 日执行细化见：`docs/prd/score-90-w2-daily-plan.md`。
+W3 日执行细化见：`docs/prd/score-90-w3-daily-plan.md`。
+周复盘统一模板见：`docs/prd/score-90-weekly-review-template.md`。
+执行前扫描台账（首轮）见：`docs/prd/score-90-pre-scan-register-round1-2026-04-19.md`。
 
 | 周次 | 时间窗口 | 目标 | 对应事项 | 负责人 | 周验收标准 |
 | --- | --- | --- | --- | --- | --- |

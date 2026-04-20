@@ -8,44 +8,44 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(scriptDir, '..')
 
 const requiredFiles = [
-  'prd/README.md',
-  'prd/World-Link-Alpha-PRD-overview.md',
-  'prd/TODO.md',
-  'prd/frontend-architecture-messaging.md',
-  'prd/freemium-cloud-architecture.md',
-  'prd/web-admin-evolution-roadmap.md',
-  'prd/testing-strategy-and-release-gate.md',
-  'prd/e2e-acceptance-checklist.md',
-  'prd/testing-asset-register-template.md',
-  'prd/testing-asset-register-round1-2026-04-19.md',
-  'prd/plugin-to-web-migration.md',
-  'prd/readany-overlap-analysis.md',
-  'design/README.md',
-  'design/ux-spec.md',
-  'design/ui-design-spec.md'
+  'docs/prd/README.md',
+  'docs/prd/World-Link-Alpha-PRD-overview.md',
+  'docs/prd/TODO.md',
+  'docs/prd/frontend-architecture-messaging.md',
+  'docs/prd/freemium-cloud-architecture.md',
+  'docs/prd/web-admin-evolution-roadmap.md',
+  'docs/prd/testing-strategy-and-release-gate.md',
+  'docs/prd/e2e-acceptance-checklist.md',
+  'docs/prd/testing-asset-register-template.md',
+  'docs/prd/testing-asset-register-round1-2026-04-19.md',
+  'docs/prd/plugin-to-web-migration.md',
+  'docs/prd/readany-overlap-analysis.md',
+  'docs/design/README.md',
+  'docs/design/ux-spec.md',
+  'docs/design/ui-design-spec.md'
 ]
 
 const forbiddenFiles = [
-  'prd/feature-book-import.md',
-  'prd/feature-selection-capture.md',
-  'design/06-ux-spec.md',
-  'design/07-ui-design-spec.md'
+  'docs/prd/feature-book-import.md',
+  'docs/prd/feature-selection-capture.md',
+  'docs/design/06-ux-spec.md',
+  'docs/design/07-ui-design-spec.md'
 ]
 
 const forbiddenRefs = [...forbiddenFiles]
 const requiredReadmeHints = [
-  'design/ux-spec.md',
-  'design/ui-design-spec.md',
-  'prd/World-Link-Alpha-PRD-overview.md',
-  'prd/TODO.md'
+  'docs/design/ux-spec.md',
+  'docs/design/ui-design-spec.md',
+  'docs/prd/World-Link-Alpha-PRD-overview.md',
+  'docs/prd/TODO.md'
 ]
 const contentSentinels = {
-  'design/ui-design-spec.md': '# UI Design Spec: World-Link Alpha',
-  'design/ux-spec.md': '# UX Spec: World-Link Alpha',
-  'prd/World-Link-Alpha-PRD-overview.md': '# World-Link Alpha PRD'
+  'docs/design/ui-design-spec.md': '# UI Design Spec: World-Link Alpha',
+  'docs/design/ux-spec.md': '# UX Spec: World-Link Alpha',
+  'docs/prd/World-Link-Alpha-PRD-overview.md': '# World-Link Alpha PRD'
 }
 const ignoreDirs = new Set(['node_modules', '.git', 'dist', 'build', '.claude', '.codex'])
-const allowedReferenceFiles = new Set(['prd/TODO.md'])
+const allowedReferenceFiles = new Set(['docs/prd/TODO.md'])
 
 function extractDeclaredDocPaths(content) {
   const regex = /`([^`]+)`/g
@@ -54,7 +54,7 @@ function extractDeclaredDocPaths(content) {
   while ((match = regex.exec(content)) !== null) {
     const value = String(match[1] || '').trim()
     if (!value) continue
-    if (value.startsWith('prd/') || value.startsWith('design/')) {
+    if (value.startsWith('docs/prd/') || value.startsWith('docs/design/')) {
       declared.add(value.replace(/\/+$/g, ''))
     }
   }
@@ -111,34 +111,34 @@ for (const filePath of markdownFiles) {
   }
 }
 
-const prdReadme = path.join(rootDir, 'prd/README.md')
+const prdReadme = path.join(rootDir, 'docs/prd/README.md')
 if (existsSync(prdReadme)) {
   const content = readFileSync(prdReadme, 'utf8')
-  for (const hint of requiredReadmeHints.filter((item) => item.startsWith('prd/'))) {
+  for (const hint of requiredReadmeHints.filter((item) => item.startsWith('docs/prd/'))) {
     if (!content.includes(hint)) {
-      errors.push(`prd/README.md 未声明关键文档：${hint}`)
+      errors.push(`docs/prd/README.md 未声明关键文档：${hint}`)
     }
   }
   const declaredDocs = extractDeclaredDocPaths(content)
   for (const declaredDoc of declaredDocs) {
     if (!existsSync(path.join(rootDir, declaredDoc))) {
-      errors.push(`prd/README.md 声明的文档不存在：${declaredDoc}`)
+      errors.push(`docs/prd/README.md 声明的文档不存在：${declaredDoc}`)
     }
   }
 }
 
-const designReadme = path.join(rootDir, 'design/README.md')
+const designReadme = path.join(rootDir, 'docs/design/README.md')
 if (existsSync(designReadme)) {
   const content = readFileSync(designReadme, 'utf8')
-  for (const hint of requiredReadmeHints.filter((item) => item.startsWith('design/'))) {
+  for (const hint of requiredReadmeHints.filter((item) => item.startsWith('docs/design/'))) {
     if (!content.includes(hint)) {
-      errors.push(`design/README.md 未声明关键文档：${hint}`)
+      errors.push(`docs/design/README.md 未声明关键文档：${hint}`)
     }
   }
   const declaredDocs = extractDeclaredDocPaths(content)
   for (const declaredDoc of declaredDocs) {
     if (!existsSync(path.join(rootDir, declaredDoc))) {
-      errors.push(`design/README.md 声明的文档不存在：${declaredDoc}`)
+      errors.push(`docs/design/README.md 声明的文档不存在：${declaredDoc}`)
     }
   }
 }

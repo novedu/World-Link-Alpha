@@ -1,5 +1,8 @@
 /* global chrome */
 
+// Sidepanel 运行时配置基线：
+// - 目前产品策略是“登录即云端”，默认 repositoryMode=cloud
+// - 若后续重新引入本地模式，可通过 normalizeRepositoryMode 兼容
 const DEFAULT_RUNTIME_CONFIG = {
   repositoryMode: 'cloud',
   cloudApiBaseUrl: '',
@@ -14,6 +17,7 @@ function normalizeRepositoryMode(value, fallbackMode = 'cloud') {
 }
 
 function normalizeCloudTimeoutMs(value) {
+  // 云端请求超时保护：最小 3s，最大 60s，避免误配置导致频繁失败或长时间卡死
   const timeoutRaw = Number(value ?? DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs);
   if (!Number.isFinite(timeoutRaw)) return DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs;
   return Math.max(3000, Math.min(60000, Math.floor(timeoutRaw)));
@@ -55,6 +59,7 @@ export function formatRuntimeError(result, fallback = '操作失败，请稍后�
 }
 
 export function normalizeRuntimeConfig(rawConfig, fallbackRepositoryMode = 'cloud') {
+  // cloudApiBaseUrl 去掉尾部 /，避免拼接路径时出现 //api/**
   const repositoryMode = normalizeRepositoryMode(rawConfig?.repositoryMode, fallbackRepositoryMode);
   return {
     repositoryMode,

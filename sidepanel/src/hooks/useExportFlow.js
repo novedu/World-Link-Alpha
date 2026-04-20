@@ -5,6 +5,7 @@ import {
   downloadTextFile
 } from '../services/exportService';
 import { entitlementService } from '../services/entitlement.service.ts';
+import { buildAccessRecoveryMessage } from '../utils/accessRecovery.js';
 
 export function useExportFlow({
   selectedWorldId,
@@ -21,7 +22,8 @@ export function useExportFlow({
   typeLabels,
   relationLabels,
   parseTags,
-  onUiMessage
+  onUiMessage,
+  openAccountModal
 }) {
   const canExportMarkdown = runtimeContext.entitlements?.features?.exportMarkdown !== false;
   const canExportJson = Boolean(runtimeContext.entitlements?.features?.exportJson);
@@ -53,12 +55,26 @@ export function useExportFlow({
     });
 
     if (format === 'json' && !canExportJson) {
-      onUiMessage?.('当前套餐不支持 JSON 导出', 'warning');
+      onUiMessage?.({
+        type: 'warning',
+        title: '需要升级后继续',
+        text: 'JSON 导出为 Pro 功能，可在账号面板升级后继续导出。',
+        actions: openAccountModal
+          ? [{ label: '查看套餐', variant: 'primary', onClick: openAccountModal }]
+          : []
+      });
       return;
     }
 
     if (format === 'markdown' && !canExportMarkdown) {
-      onUiMessage?.('当前套餐不支持 Markdown 导出', 'warning');
+      onUiMessage?.({
+        type: 'warning',
+        title: '导出暂不可用',
+        text: '当前套餐暂不支持 Markdown 导出，可在账号面板查看权益或升级后继续使用。',
+        actions: openAccountModal
+          ? [{ label: '查看套餐', variant: 'primary', onClick: openAccountModal }]
+          : []
+      });
       return;
     }
 
@@ -66,7 +82,13 @@ export function useExportFlow({
       try {
         await entitlementService.consumeExport('json');
       } catch (error) {
-        onUiMessage?.(error?.message || '当前套餐不支持 JSON 导出', 'warning');
+        const accessRecovery = buildAccessRecoveryMessage(error, {
+          openAccountModal
+        });
+        onUiMessage?.(accessRecovery || {
+          type: 'warning',
+          text: error?.message || '当前套餐不支持 JSON 导出'
+        });
         return;
       }
 
@@ -94,7 +116,13 @@ export function useExportFlow({
     try {
       await entitlementService.consumeExport('markdown');
     } catch (error) {
-      onUiMessage?.(error?.message || '当前套餐不支持 Markdown 导出', 'warning');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal
+      });
+      onUiMessage?.(accessRecovery || {
+        type: 'warning',
+        text: error?.message || '当前套餐不支持 Markdown 导出'
+      });
       return;
     }
 

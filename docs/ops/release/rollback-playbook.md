@@ -29,4 +29,4 @@ node scripts/ops/restore-db.mjs --from backend/backups/<backup-file>.db --apply
 
 1. 24 小时内输出根因分析（RCA）
 2. 为根因补自动化测试或门禁规则
-3. 更新 `ops/release/release-checklist.md` 防止复发
+3. 更新 `docs/ops/release/release-checklist.md` 防止复发

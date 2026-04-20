@@ -1,6 +1,7 @@
 import { entityService } from '../services/entity.service.ts';
 import { aiService } from '../services/ai.service.ts';
 import { formatAiProvider } from '../utils/aiUtils';
+import { buildAccessRecoveryMessage } from '../utils/accessRecovery.js';
 
 function normalizeOptionalRatio(value) {
   const raw = Number(value);
@@ -78,7 +79,8 @@ export function useEntityEditorAiFlow({
   conflictCheckMeta,
   setConflictCheckMeta,
   aiAssistProfile,
-  onUiMessage
+  onUiMessage,
+  openAccountModal
 }) {
   const fetchContextEntities = async () => {
     if (!selectedWorldId) return [];
@@ -154,7 +156,13 @@ export function useEntityEditorAiFlow({
       );
     } catch (error) {
       console.error('[Sidepanel] handleAiAssist error:', error);
-      onUiMessage?.(error?.message || 'AI 处理失败，请稍后重试', 'error');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal
+      });
+      onUiMessage?.(accessRecovery || {
+        type: 'error',
+        text: error?.message || 'AI 处理失败，请稍后重试'
+      });
     } finally {
       setIsAiAssisting(false);
     }
@@ -241,7 +249,13 @@ export function useEntityEditorAiFlow({
       );
     } catch (error) {
       console.error('[Sidepanel] handleCheckConflict error:', error);
-      onUiMessage?.(error?.message || '冲突检测失败，请稍后重试', 'error');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal
+      });
+      onUiMessage?.(accessRecovery || {
+        type: 'error',
+        text: error?.message || '冲突检测失败，请稍后重试'
+      });
     } finally {
       setIsCheckingConflict(false);
     }

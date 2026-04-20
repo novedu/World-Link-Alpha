@@ -1,17 +1,17 @@
 # Design 文档索引（当前有效）
 
 > 本目录只保留当前版本 UX/UI 规范，避免历史方案误导开发与评审。
-> 截至 `2026-04-19`，仓库内旧版 UI/UX 草案已清理完成，当前文件即唯一有效口径。
+> 截至 `2026-04-21`，仓库内旧版 UI/UX 草案已清理完成，且文档主目录已统一迁移到 `docs/`，当前文件即唯一有效口径。
 
 ## 当前有效文档（Active）
 
-- `design/ux-spec.md`  
+- `docs/design/ux-spec.md`  
   UX 结构、信息架构、关键交互流程
-- `design/ui-design-spec.md`  
+- `docs/design/ui-design-spec.md`  
   UI 视觉规范、组件规则、响应式与状态表现
-- `design/style-decision-v1.md`
+- `docs/design/style-decision-v1.md`
   风格决策基线（Sidepanel + Web）与 token 落地策略
-- `design/style-execution-checklist-v1.md`
+- `docs/design/style-execution-checklist-v1.md`
   风格执行清单（Corporate Clean 主风格、辅助风格边界与本轮落地范围）
 
 ## 使用约定

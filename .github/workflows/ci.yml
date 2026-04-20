@@ -64,7 +64,7 @@ jobs:
         run: npm --prefix backend run typecheck
 
       - name: Test
-        run: npm --prefix backend test
+        run: RUN_SOCKET_E2E=1 npm --prefix backend test
 
       - name: Build
         run: npm --prefix backend run build

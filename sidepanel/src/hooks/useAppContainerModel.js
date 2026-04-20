@@ -35,6 +35,7 @@ import { useActivationFlow } from './useActivationFlow';
 import { useOnboardingTour } from './useOnboardingTour';
 
 export function useAppContainerModel() {
+  // 顶层容器：组合各业务 Hook，并向 UI 层暴露统一 props 与回调。
   const state = useAppContainerState();
 
   const { selectedWorldId, setSelectedWorldId, selectedBookId, setSelectedBookId, selectWorld, selectBook } = useSelectionState();
@@ -58,8 +59,7 @@ export function useAppContainerModel() {
     onRefreshData: reloadData
   });
 
-  useAuthListeners({ showUiMessage, setIsAccountModalOpen: state.setIsAccountModalOpen });
-
+  // 统一埋点入口，自动附加当前激活会话 ID，避免各处重复拼装 payload。
   const trackActivation = useCallback((eventName, payload = {}) => {
     const safeEventName = String(eventName || '').trim();
     if (!safeEventName) return;
@@ -86,7 +86,14 @@ export function useAppContainerModel() {
     }
   }, [authRequired, loading, worlds.length, trackActivation, state]);
 
+  // 开发/生产环境切换说明：
+  // - `npm run dev`（Vite）=> import.meta.env.DEV === true
+  // - `npm run build` 后的产物 => import.meta.env.DEV === false（生产行为）
+  // 这里仅在开发环境显示埋点调试面板，避免生产用户看到内部调试入口。
   const activationDebugAvailable = Boolean(import.meta?.env?.DEV);
+  const openAccountModal = useCallback(() => {
+    state.setIsAccountModalOpen(true);
+  }, [state]);
 
   const handleTabChange = async (newTab) => {
     state.setActiveTab(newTab);
@@ -105,7 +112,20 @@ export function useAppContainerModel() {
     handleSignOut,
     handleUpgradeLocalPlan,
     handleRefreshEntitlements
-  } = useRuntimeContext({ onUiMessage: showUiMessage, onAuthStateChange: reloadData });
+  } = useRuntimeContext({ onAuthStateChange: reloadData });
+
+  useAuthListeners({
+    showUiMessage,
+    isAccountModalOpen: state.isAccountModalOpen,
+    setAccountNotice,
+    openAccountModal,
+    onAuthExpiredStateChange: async () => {
+      setAuthSession(null);
+      setAccountNotice(null);
+      await refreshRuntimeContext();
+      await reloadData();
+    }
+  });
 
   const subscriptionStatus = useMemo(() => {
     if (!authSession || !authSession.subscriptionExpiresAt) {
@@ -159,7 +179,8 @@ export function useAppContainerModel() {
     ensureCloudRuntimeReady,
     refreshRuntimeContext,
     onDataChanged: reloadData,
-    onUiMessage: showUiMessage
+    onUiMessage: showUiMessage,
+    openAccountModal
   });
 
   const {
@@ -192,7 +213,8 @@ export function useAppContainerModel() {
     entityRelations,
     setActiveTab: state.setActiveTab,
     onDataChanged: reloadData,
-    onUiMessage: showUiMessage
+    onUiMessage: showUiMessage,
+    openAccountModal
   });
 
   const {
@@ -212,7 +234,8 @@ export function useAppContainerModel() {
     setActiveTab: state.setActiveTab,
     setEditingEntity,
     onDataChanged: reloadData,
-    onUiMessage: showUiMessage
+    onUiMessage: showUiMessage,
+    openAccountModal
   });
 
   const { handleCreateFromCapture, handleUpdateCaptureStatus } = useCaptureInboxFlow({
@@ -283,7 +306,8 @@ export function useAppContainerModel() {
     typeLabels: TYPE_LABELS,
     relationLabels: ENTITY_RELATION_LABELS,
     parseTags,
-    onUiMessage: showUiMessage
+    onUiMessage: showUiMessage,
+    openAccountModal
   });
 
   const { overviewStats } = useOverviewStats({
@@ -404,6 +428,7 @@ export function useAppContainerModel() {
     trackActivation
   });
 
+  // 激活卡展示逻辑：登录后、非加载中、未手动隐藏、且还有未完成步骤时显示。
   const activationGuide = useMemo(() => ({
     visible: !authRequired && !loading && !state.isActivationGuideDismissed && activationFlow.activationCompletedCount < activationFlow.activationTotalCount,
     completedCount: activationFlow.activationCompletedCount,
@@ -420,6 +445,7 @@ export function useAppContainerModel() {
     activationFlow.activationSteps
   ]);
 
+  // 分步引导逻辑统一下沉到 useOnboardingTour，容器层只负责依赖注入与事件接线。
   const onboardingTour = useOnboardingTour({
     worlds,
     books,
@@ -444,6 +470,7 @@ export function useAppContainerModel() {
     tourCompletionNoticeRef: state.tourCompletionNoticeRef
   });
 
+  // 调试面板：拉取埋点快照（最近事件 + 聚合计数）。
   const refreshActivationDebugSnapshot = useCallback(async () => {
     if (!activationDebugAvailable) return;
     state.setIsActivationDebugLoading(true);
@@ -458,6 +485,7 @@ export function useAppContainerModel() {
     }
   }, [activationDebugAvailable, state, showUiMessage]);
 
+  // 调试面板：清空本地埋点并立即回读快照，确保 UI 与存储一致。
   const clearActivationDebugSnapshot = useCallback(async () => {
     if (!activationDebugAvailable) return;
     state.setIsActivationDebugLoading(true);
@@ -473,6 +501,7 @@ export function useAppContainerModel() {
     }
   }, [activationDebugAvailable, state, showUiMessage]);
 
+  // 调试面板：导出 JSON 快照，便于离线做漏斗分析和问题复盘。
   const exportActivationDebugSnapshot = useCallback(async () => {
     if (!activationDebugAvailable) return;
     state.setIsActivationDebugExporting(true);
@@ -484,6 +513,7 @@ export function useAppContainerModel() {
         exportedAt: new Date().toISOString(),
         snapshot
       };
+      // 采用前端 Blob 下载，不依赖后端文件服务。
       const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
         type: 'application/json;charset=utf-8'
       });
@@ -510,6 +540,7 @@ export function useAppContainerModel() {
     }
   }, [activationDebugAvailable, state, showUiMessage]);
 
+  // 切换调试面板：打开时自动刷新一次，降低首次查看等待成本。
   const toggleActivationDebugPanel = useCallback(() => {
     if (!activationDebugAvailable) return;
     state.setIsActivationDebugOpen((prev) => {
@@ -520,10 +551,6 @@ export function useAppContainerModel() {
       return next;
     });
   }, [activationDebugAvailable, state, refreshActivationDebugSnapshot]);
-
-  const openAccountModal = () => {
-    state.setIsAccountModalOpen(true);
-  };
 
   const closeAccountModal = () => {
     state.setIsAccountModalOpen(false);

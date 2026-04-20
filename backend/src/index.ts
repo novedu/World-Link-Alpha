@@ -3,11 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import type { Server } from 'node:http';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestContextMiddleware } from './middleware/requestContext';
 import { requestMetricsMiddleware } from './middleware/requestMetrics';
 import { createRateLimiter } from './middleware/rateLimit';
+import { validateRuntimeEnv } from './config/env';
 import authRoutes from './routes/auth';
 import worldRoutes from './routes/worlds';
 import bookRoutes from './routes/books';
@@ -20,9 +23,39 @@ import timelineRoutes from './routes/timeline';
 import subscriptionRoutes from './routes/subscriptions';
 import observabilityRoutes from './routes/observability';
 
-dotenv.config();
+function resolveEnvCandidates(nodeEnv: string): string[] {
+  if (nodeEnv === 'production') {
+    return ['.env.production', '.env'];
+  }
+  if (nodeEnv === 'test') {
+    return ['.env.test', '.env'];
+  }
+  return ['.env.development', '.env'];
+}
 
-const PORT = process.env.PORT || 3001;
+function loadEnvironmentConfig(): string {
+  const nodeEnv = String(process.env.NODE_ENV || 'development').trim() || 'development';
+  const candidates = resolveEnvCandidates(nodeEnv);
+
+  for (const envFile of candidates) {
+    const fullPath = path.resolve(process.cwd(), envFile);
+    if (existsSync(fullPath)) {
+      dotenv.config({ path: fullPath });
+      return envFile;
+    }
+  }
+
+  dotenv.config();
+  return '.env';
+}
+
+const loadedEnvFile = loadEnvironmentConfig();
+const env = validateRuntimeEnv();
+
+// 后端环境变量来源：backend/.env（本地）或部署平台注入（生产）。
+// - 开发：NODE_ENV=development（默认）
+// - 生产：NODE_ENV=production（建议配合 npm run build && npm run start）
+const PORT = env.PORT;
 
 export function createApp() {
   const app = express();
@@ -32,7 +65,7 @@ export function createApp() {
 
   // CORS 配置
   const corsOptions = {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: env.allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
@@ -96,11 +129,12 @@ const app = createApp();
 export function startServer(port: string | number = PORT): Server {
   return app.listen(port, () => {
     console.log(`[Server] World Link API running on port ${port}`);
-    console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`[Server] Environment: ${env.NODE_ENV}`);
+    console.log(`[Server] Env file: ${loadedEnvFile}`);
   });
 }
 
-if (process.env.NODE_ENV !== 'test') {
+if (env.NODE_ENV !== 'test') {
   startServer(PORT);
 }
 

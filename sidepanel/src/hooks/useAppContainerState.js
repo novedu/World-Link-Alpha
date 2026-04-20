@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 
 export function useAppContainerState() {
+  // 视图态：筛选、Tab、弹窗、调试面板等 UI 状态统一收敛在该 Hook。
   const [entitySearchQuery, setEntitySearchQuery] = useState('');
   const [entityTypeFilter, setEntityTypeFilter] = useState('all');
   const [entityTagFilter, setEntityTagFilter] = useState('');
@@ -19,6 +20,7 @@ export function useAppContainerState() {
   const [isOnboardingTourOpen, setIsOnboardingTourOpen] = useState(false);
   const [onboardingTourStepIndex, setOnboardingTourStepIndex] = useState(0);
 
+  // refs 不触发渲染，适合保存埋点/引导流程的“会话级临时状态”。
   const activationSessionIdRef = useRef('');
   const activationMetricsReadyRef = useRef(false);
   const activationPrevDoneMapRef = useRef({});

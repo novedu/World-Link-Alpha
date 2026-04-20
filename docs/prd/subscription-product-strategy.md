@@ -15,9 +15,9 @@
 
 ## 2. 当前有效口径（请改看以下文档）
 
-- `prd/freemium-cloud-architecture.md`
-- `prd/World-Link-Alpha-PRD-overview.md`
-- `prd/TODO.md`
+- `docs/prd/freemium-cloud-architecture.md`
+- `docs/prd/World-Link-Alpha-PRD-overview.md`
+- `docs/prd/TODO.md`
 
 ## 3. 处理规则
 

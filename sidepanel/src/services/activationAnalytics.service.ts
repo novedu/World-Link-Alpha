@@ -12,6 +12,7 @@ interface ActivationEventRecord {
 }
 
 function canUseChromeStorage() {
+  // 兼容测试环境/非扩展环境：不可用时自动降级为空实现。
   return typeof chrome !== 'undefined' && Boolean(chrome?.storage?.local);
 }
 
@@ -63,6 +64,7 @@ export async function trackActivationEvent(nameInput: string, payloadInput: unkn
   const event = buildEventRecord(name, payload);
 
   const current = await readEvents();
+  // Ring Buffer：仅保留最近 N 条，避免 chrome.storage 无限制增长。
   const next = [...current, event].slice(-ACTIVATION_ANALYTICS_MAX_EVENTS);
   await writeEvents(next);
 }
@@ -80,6 +82,7 @@ export async function getActivationAnalyticsSnapshot() {
     total: events.length,
     byEventName,
     lastEvent: events[events.length - 1] || null,
+    // recentEvents 用于调试面板展示，默认按时间倒序取最近 8 条。
     recentEvents: events
       .slice(-8)
       .reverse()

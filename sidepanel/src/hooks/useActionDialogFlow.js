@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { worldService } from '../services/world.service.ts';
 import { bookService } from '../services/book.service.ts';
 import { authService } from '../services/auth.service.ts';
+import { buildAccessRecoveryMessage } from '../utils/accessRecovery.js';
 
 export function useActionDialogFlow({
   selectedWorldId,
@@ -11,7 +12,8 @@ export function useActionDialogFlow({
   ensureCloudRuntimeReady,
   refreshRuntimeContext,
   onDataChanged,
-  onUiMessage
+  onUiMessage,
+  openAccountModal
 }) {
   const [dialogSubmitting, setDialogSubmitting] = useState(false);
   const [actionDialog, setActionDialog] = useState({
@@ -19,11 +21,32 @@ export function useActionDialogFlow({
     type: '',
     title: '',
     message: '',
+    notice: null,
     fields: [],
     confirmText: '确定',
     cancelText: '取消'
   });
   const [actionDialogValues, setActionDialogValues] = useState({});
+
+  const showDialogNotice = (input, type = 'warning') => {
+    if (!input) return;
+    const notice =
+      typeof input === 'object' && !Array.isArray(input)
+        ? {
+            ...input,
+            type: input.type || type,
+            at: Date.now()
+          }
+        : {
+            type,
+            text: String(input),
+            at: Date.now()
+          };
+    setActionDialog((prev) => ({
+      ...prev,
+      notice
+    }));
+  };
 
   const openActionDialog = (config) => {
     const safeFields = Array.isArray(config?.fields) ? config.fields : [];
@@ -36,6 +59,7 @@ export function useActionDialogFlow({
       type: config?.type || '',
       title: config?.title || '操作确认',
       message: config?.message || '',
+      notice: null,
       fields: safeFields,
       confirmText: config?.confirmText || '确定',
       cancelText: config?.cancelText || '取消'
@@ -44,12 +68,15 @@ export function useActionDialogFlow({
   };
 
   const closeActionDialog = () => {
-    setActionDialog((prev) => ({ ...prev, open: false }));
+    setActionDialog((prev) => ({ ...prev, open: false, notice: null }));
     setActionDialogValues({});
     setDialogSubmitting(false);
   };
 
   const updateDialogField = (key, value) => {
+    if (actionDialog.notice) {
+      setActionDialog((prev) => ({ ...prev, notice: null }));
+    }
     setActionDialogValues((prev) => ({
       ...prev,
       [key]: value
@@ -64,13 +91,13 @@ export function useActionDialogFlow({
       if (actionDialog.type === 'create_world') {
         const name = String(actionDialogValues.name || '').trim();
         if (!name) {
-          onUiMessage?.('世界名称不能为空', 'warning');
+          showDialogNotice('世界名称不能为空', 'warning');
           setDialogSubmitting(false);
           return;
         }
         const result = await worldService.createWorld(name, '');
         if (!result?.success || !result?.data) {
-          onUiMessage?.('创建世界失败，请稍后重试', 'error');
+          showDialogNotice('创建世界失败，请稍后重试', 'error');
           setDialogSubmitting(false);
           return;
         }
@@ -84,19 +111,19 @@ export function useActionDialogFlow({
 
       if (actionDialog.type === 'create_book') {
         if (!selectedWorldId) {
-          onUiMessage?.('请先选择或创建一个世界', 'warning');
+          showDialogNotice('请先选择或创建一个世界', 'warning');
           setDialogSubmitting(false);
           return;
         }
         const title = String(actionDialogValues.title || '').trim();
         if (!title) {
-          onUiMessage?.('书项目名称不能为空', 'warning');
+          showDialogNotice('书项目名称不能为空', 'warning');
           setDialogSubmitting(false);
           return;
         }
         const result = await bookService.createBook(selectedWorldId, title, '');
         if (!result?.success || !result?.data) {
-          onUiMessage?.('创建书项目失败，请稍后重试', 'error');
+          showDialogNotice('创建书项目失败，请稍后重试', 'error');
           setDialogSubmitting(false);
           return;
         }
@@ -111,13 +138,13 @@ export function useActionDialogFlow({
         const email = String(actionDialogValues.email || '').trim();
         const password = String(actionDialogValues.password || '');
         if (!email || !password) {
-          onUiMessage?.('邮箱和密码不能为空', 'warning');
+          showDialogNotice('邮箱和密码不能为空', 'warning');
           setDialogSubmitting(false);
           return;
         }
         const loginResult = await authService.login(email, password);
         if (!loginResult?.success) {
-          onUiMessage?.('登录失败，请检查账号信息', 'error');
+          showDialogNotice('登录失败，请检查账号信息', 'error');
           setDialogSubmitting(false);
           return;
         }
@@ -141,18 +168,18 @@ export function useActionDialogFlow({
         const password = String(actionDialogValues.password || '');
         const confirmPassword = String(actionDialogValues.confirmPassword || '');
         if (!email || !password || !confirmPassword) {
-          onUiMessage?.('请填写所有必填字段', 'warning');
+          showDialogNotice('请填写所有必填字段', 'warning');
           setDialogSubmitting(false);
           return;
         }
         if (password !== confirmPassword) {
-          onUiMessage?.('两次输入的密码不一致', 'warning');
+          showDialogNotice('两次输入的密码不一致', 'warning');
           setDialogSubmitting(false);
           return;
         }
         const registerResult = await authService.register(email, password);
         if (!registerResult?.success) {
-          onUiMessage?.('注册失败，请稍后重试', 'error');
+          showDialogNotice('注册失败，请稍后重试', 'error');
           setDialogSubmitting(false);
           return;
         }
@@ -174,7 +201,18 @@ export function useActionDialogFlow({
       setDialogSubmitting(false);
     } catch (error) {
       console.error('[Sidepanel] handleSubmitActionDialog error:', error);
-      onUiMessage?.('操作失败，请稍后重试', 'error');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal: () => {
+          closeActionDialog();
+          openAccountModal?.();
+        }
+      });
+      if (accessRecovery) {
+        showDialogNotice(accessRecovery);
+        setDialogSubmitting(false);
+        return;
+      }
+      showDialogNotice(String(error?.message || '操作失败，请稍后重试'), 'error');
       setDialogSubmitting(false);
     }
   };

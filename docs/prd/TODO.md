@@ -48,13 +48,13 @@
 
 ## 评分驱动优先级（90 分冲刺版，2026-04-19）
 
-> 评分来源：`prd/World-Link-Alpha-PRD-overview.md`。
+> 评分来源：`docs/prd/World-Link-Alpha-PRD-overview.md`。
 > 当前口径：文档与规划成熟度复评 `90/100`；产品运行实绩需在 2026-05-20 前达成门槛。
-> 周执行排期与证据模板见：`prd/score-90-execution-plan.md`。
-> W1 日执行细化见：`prd/score-90-w1-daily-plan.md`。
-> W2/W3 日执行细化见：`prd/score-90-w2-daily-plan.md`、`prd/score-90-w3-daily-plan.md`。
-> 周复盘模板见：`prd/score-90-weekly-review-template.md`。
-> 执行前扫描台账（首轮）见：`prd/score-90-pre-scan-register-round1-2026-04-19.md`。
+> 周执行排期与证据模板见：`docs/prd/score-90-execution-plan.md`。
+> W1 日执行细化见：`docs/prd/score-90-w1-daily-plan.md`。
+> W2/W3 日执行细化见：`docs/prd/score-90-w2-daily-plan.md`、`docs/prd/score-90-w3-daily-plan.md`。
+> 周复盘模板见：`docs/prd/score-90-weekly-review-template.md`。
+> 执行前扫描台账（首轮）见：`docs/prd/score-90-pre-scan-register-round1-2026-04-19.md`。
 
 | Item | 目标 | Priority | Status | Owner | Due | DoD |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -87,7 +87,7 @@
 
 ## Web/Admin 演进触发节点（非微前端策略）
 
-> 详细蓝图见：`prd/web-admin-evolution-roadmap.md`
+> 详细蓝图见：`docs/prd/web-admin-evolution-roadmap.md`
 
 | Gate | 触发条件（Trigger） | 目标（Goal） | 当前状态 | Owner | Due |
 | --- | --- | --- | --- | --- | --- |
@@ -109,7 +109,7 @@
 
 ## 测试体系与发布门禁（新增）
 
-> 详细策略见：`prd/testing-strategy-and-release-gate.md`
+> 详细策略见：`docs/prd/testing-strategy-and-release-gate.md`
 
 | Task | 目标 | Priority | Status | Owner | Due |
 | --- | --- | --- | --- | --- | --- |
@@ -127,9 +127,57 @@
 
 ### 测试资产台账位置（新增）
 
-- 标准模板：`prd/testing-asset-register-template.md`
-- 首轮执行版：`prd/testing-asset-register-round1-2026-04-19.md`
+- 标准模板：`docs/prd/testing-asset-register-template.md`
+- 首轮执行版：`docs/prd/testing-asset-register-round1-2026-04-19.md`
 - 要求：每次 RC 前更新 `最近执行`、`证据链接`、`放行结论`
+
+---
+
+## 企业级基线 7 天落地计划（并入待办，2026-04-21）
+
+> 说明：原计划文档 `docs/prd/enterprise-baseline-7day-plan-2026-04-21.md` 已并入本 TODO，后续仅在此处维护状态，避免双份口径。
+
+### 硬门禁（Hard Gates，任一失败即 No-Go）
+
+1. `lint`：0 error（warning 有明确清理计划）
+2. `typecheck`：0 error
+3. `test`：关键路径 100% 通过
+4. `build`：backend + sidepanel 构建成功
+5. `check:docs`：文档一致性通过
+6. `security:env`：敏感配置与密钥检查通过
+7. `release-gate`：发布回滚清单可执行并有演练记录
+
+### Day 任务清单（2026-04-21 ~ 2026-04-27）
+
+| Day | 日期 | 目标 | Priority | Status | Owner | Due | 验收标准（DoD） |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| D1 | 2026-04-21 | 建立单一事实源与目录基线 | P0 | done | 产品 + 前端 | 2026-04-21 | `check:docs` 与目录结构一致，文档引用无双轨 |
+| D2 | 2026-04-22 | 完成环境分层标准化 | P0 | done | 前后端 | 2026-04-22 | backend/sidepanel 均具备 dev/prod（backend 含 test）配置入口 |
+| D3 | 2026-04-23 | 修复质量红灯 | P0 | done | 前后端 | 2026-04-23 | backend lint error 清零，产物目录不再污染 lint |
+| D4 | 2026-04-24 | 固化测试门禁 | P0 | done | 产品 + 技术负责人 | 2026-04-24 | 关键链路测试清单 + 覆盖率阈值 + CI 断言生效 |
+| D5 | 2026-04-25 | 强化安全与配置校验 | P0 | done | 后端负责人 | 2026-04-25 | 启动阶段完成 env schema 校验，JWT/CORS/限流策略复核 |
+| D6 | 2026-04-26 | 发布与回滚闭环 | P0 | done | 产品 + 技术负责人 | 2026-04-26 | release checklist + 回滚脚本演练完成 |
+| D7 | 2026-04-27 | 预上线验收与冻结 | P0 | in_progress | 产品/前端/后端联合 | 2026-04-27 | Go/No-Go 评审通过后才允许上线窗口 |
+
+### 本周 MVP Baseline（2026-04-27 前）
+
+- [x] 前后端环境配置分层完成并可复现
+- [x] `verify` 主链路全绿（`lint/typecheck/check:docs/security/test/build`）
+- [x] 发布回滚 SOP 成文并完成一次演练
+
+### 执行证据快照（2026-04-21）
+
+- [x] `npm run check:docs` 通过（文档并表后无双轨冲突）
+- [x] `npm run security:env` 通过（环境基线检查通过）
+- [x] `npm run verify` 通过（lint/typecheck/check:docs/security/test/build 全绿）
+- [x] 后端 E2E 基线修复：密码规则对齐、tags 输入类型对齐、长驻定时器导致测试不退出问题修复
+- [x] CI 补强：`verify.yml` / `release-gate.yml` / `ci.yml` 已对后端 E2E 启用 `RUN_SOCKET_E2E=1`
+- [x] 覆盖率阈值门禁已落地：`sidepanel/vitest.config.js` + `docs/prd/testing-strategy-and-release-gate.md`
+- [x] 启动即校验环境变量：`backend/src/config/env.ts` + `backend/src/index.ts`
+- [x] 发布回滚演练记录：`docs/ops/release/release-drill-log-2026-04-21.md`
+- [x] D7 预检记录已建立：`docs/ops/release/go-no-go-precheck-2026-04-21.md`
+- [x] D7 最终评审模板已建立：`docs/ops/release/go-no-go-final-template.md`
+- [ ] D7 预上线验收：补最终 Go/No-Go 冻结记录与上线窗口结论
 
 ---
 
@@ -375,7 +423,7 @@
   - 统一按钮、输入框、边框、间距和反馈风格
 
 - [x] 风格基线决策 v1
-  - 新增：`design/style-decision-v1.md`
+  - 新增：`docs/design/style-decision-v1.md`
   - 新增主题 token：`sidepanel/src/styles/stylekit-theme-v1.css`
   - `sidepanel/src/main.jsx` 已接入风格 token 文件
 
@@ -433,22 +481,42 @@
 
 - [x] 文档治理收敛（删除旧版专题文档）
   - 已删除重复且易过期的功能分文档
-  - 已删除：`prd/feature-book-import.md`
-  - 已删除：`prd/feature-selection-capture.md`
-  - PRD 唯一事实源索引：`prd/README.md`
-  - UI/UX 唯一事实源索引：`design/README.md`
+  - 已删除：`docs/prd/feature-book-import.md`
+  - 已删除：`docs/prd/feature-selection-capture.md`
+  - PRD 唯一事实源索引：`docs/prd/README.md`
+  - UI/UX 唯一事实源索引：`docs/design/README.md`
 
 - [x] 文档一致性检查脚本
   - 新增：`scripts/check-docs-consistency.mjs`
   - 覆盖：必需文档存在、废弃文档不存在、旧路径引用检查
   - 支持执行：`node scripts/check-docs-consistency.mjs` 与 `cd sidepanel && npm run check:docs`
 
+- [x] 文档目录迁移到 `docs/`
+  - PRD 文档统一收敛到 `docs/prd/`
+  - 设计规范统一收敛到 `docs/design/`
+  - 检查脚本、索引文档与跨文档引用已同步更新
+
+- [x] 访客态使用逻辑收敛
+  - 访客账号弹窗不再展示配额摘要与刷新权益
+  - 访客从账号弹窗进入登录/注册时，改为关闭前一层弹窗再进入表单
+  - 手动刷新提示与真实结果对齐，避免失败或掉线时仍提示“数据已刷新”
+
+- [x] 登录过期恢复路径收敛
+  - 登录过期或会话失效时，不再强制弹出账号弹窗
+  - 认证状态先收正为访客，再展示提示，避免残留旧账号身份
+  - 若账号弹窗已打开，过期提示改为弹窗内反馈，并对重复事件做去重
+
+- [x] 套餐门禁恢复提示收敛
+  - AI、导出、创建世界/作品等被套餐限制拦截时，统一改为“原因 + 下一步”提示
+  - 顶部提示支持直接进入账号面板查看套餐
+  - 创建弹窗内若撞到配额上限，先结束当前错误上下文，再引导去账号面板处理
+
 - [x] 发版端到端验收清单（E2E）
-  - 新增：`prd/e2e-acceptance-checklist.md`
+  - 新增：`docs/prd/e2e-acceptance-checklist.md`
   - 覆盖：云端存储、Entitlements、AI 反馈、时间轴、生图
 
 - [x] 开发规范文档（模块化与UI落地约束）
-  - 新增：`prd/development-guidelines.md`
+  - 新增：`docs/prd/development-guidelines.md`
   - 明确：`App.jsx` 规模阈值、组件职责边界、PR 自检清单
 
 - [x] 消息参数前置校验与错误口径统一
@@ -505,7 +573,7 @@
 ## P0：云端化与商业化（新增）
 
 - [x] 完成云端存储 + Freemium 架构评估文档
-  - 文档：`prd/freemium-cloud-architecture.md`
+  - 文档：`docs/prd/freemium-cloud-architecture.md`
   - 含技术选型对比、分层矩阵、实施路线
 
 - [x] 引入账号体系（登录 / 会话）
@@ -547,7 +615,7 @@
   - Owner: 产品负责人
   - Due: 2026-05-20
   - Status: done
-  - 基线文档：`prd/plugin-to-web-migration.md`
+  - 基线文档：`docs/prd/plugin-to-web-migration.md`
   - 已完成：
     - 固化双端共用 API 契约
     - 完成网页 Alpha 的世界/书/实体闭环
@@ -697,7 +765,7 @@
   - 临时工具脚本（如 `fix-validation.js`）仅本地使用，不提交
 
 - [x] 文档补齐规范说明
-  - 更新 `prd/development-guidelines.md`：新增「9. 请求层规范」「10. 仓库产物治理」
+  - 更新 `docs/prd/development-guidelines.md`：新增「9. 请求层规范」「10. 仓库产物治理」
   - 验收：文档完整记录规范与验收标准
 
 ---
@@ -1055,7 +1123,7 @@ cd sidepanel && npm run lint && npm run build && npm test
   - 已升级 Tour v3：按步骤 `done` 状态自动推进，支持“首个未完成步骤”启动
   - 已接入激活埋点：`activation_session_start / activation_step_completed / activation_completed`
   - 已接入引导行为埋点：`tour_opened / tour_closed / tour_step_viewed / tour_step_action / tour_next / tour_prev / tour_auto_advance`
-  - 事件字典已落文档：`prd/activation-event-dictionary.md`
+  - 事件字典已落文档：`docs/prd/activation-event-dictionary.md`
   - 账号弹窗已新增“开发：激活埋点调试”折叠区（快照刷新 / 清空事件 / 最近事件列表）
   - 调试区已支持“一键导出 JSON”快照（用于离线漏斗分析与问题复盘）
 

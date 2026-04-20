@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatAiProvider } from '../utils/aiUtils';
+import { buildAccessRecoveryMessage } from '../utils/accessRecovery.js';
 import { entityService } from '../services/entity.service';
 import { aiService } from '../services/ai.service.ts';
 
@@ -9,7 +10,8 @@ export function useManuscriptFlow({
   setActiveTab,
   setEditingEntity,
   onDataChanged,
-  onUiMessage
+  onUiMessage,
+  openAccountModal
 }) {
   const [manuscriptText, setManuscriptText] = useState('');
   const [manuscriptSuggestions, setManuscriptSuggestions] = useState([]);
@@ -73,7 +75,13 @@ export function useManuscriptFlow({
       );
     } catch (error) {
       console.error('[Sidepanel] parse manuscript error:', error);
-      onUiMessage?.(error?.message || '解析失败，请稍后重试', 'error');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal
+      });
+      onUiMessage?.(accessRecovery || {
+        type: 'error',
+        text: error?.message || '解析失败，请稍后重试'
+      });
     } finally {
       setIsParsingManuscript(false);
     }

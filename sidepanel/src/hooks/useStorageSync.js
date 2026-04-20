@@ -110,7 +110,7 @@ export function useStorageSync({ setSelectedWorldId, setSelectedBookId }) {
         setBookEntityUsages([]);
         setEntityRelations([]);
         setAuthRequired(true);
-        return;
+        return { status: 'auth_required' };
       }
 
       const [worldsResponse, capturesResponse] = await Promise.all([
@@ -158,7 +158,7 @@ export function useStorageSync({ setSelectedWorldId, setSelectedBookId }) {
         )
       ]);
 
-      if (seq !== loadSeqRef.current) return;
+      if (seq !== loadSeqRef.current) return { status: 'ignored' };
 
       syncWorlds(nextWorlds);
       setCapturedList(nextCaptures);
@@ -172,8 +172,9 @@ export function useStorageSync({ setSelectedWorldId, setSelectedBookId }) {
       setEntityRelations(mergedRelations);
       setError(null);
       setAuthRequired(false);
+      return { status: 'success' };
     } catch (err) {
-      if (seq !== loadSeqRef.current) return;
+      if (seq !== loadSeqRef.current) return { status: 'ignored' };
       console.error('[Sidepanel] API 加载失败:', err);
       if (isAuthError(err)) {
         syncWorlds([]);
@@ -184,9 +185,12 @@ export function useStorageSync({ setSelectedWorldId, setSelectedBookId }) {
         setEntityRelations([]);
         setAuthRequired(true);
         setError(null);
+        return { status: 'auth_required' };
       } else {
         setAuthRequired(false);
-        setError('加载数据失败，请稍后重试');
+        const message = '加载数据失败，请稍后重试';
+        setError(message);
+        return { status: 'error', message };
       }
     } finally {
       if (seq === loadSeqRef.current) {

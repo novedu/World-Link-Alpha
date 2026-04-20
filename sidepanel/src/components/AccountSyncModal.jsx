@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import SubscriptionManager from './SubscriptionManager.tsx';
 import { useDialogA11y } from '../hooks/useDialogA11y.js';
+import InlineMessage from './InlineMessage';
 
 function AccountSyncModal({
   open,
@@ -31,6 +32,7 @@ function AccountSyncModal({
   onExportActivationDebug
 }) {
   const isOpen = Boolean(open);
+  const isAuthenticated = Boolean(authEmail);
   const titleId = useId();
   const descriptionId = useId();
   const { panelRef, initialFocusRef } = useDialogA11y({
@@ -40,7 +42,9 @@ function AccountSyncModal({
 
   if (!isOpen) return null;
 
-  const isAuthActionsSingle = !authEmail || !canUpgradePlan;
+  const isAuthActionsSingle = !isAuthenticated || !canUpgradePlan;
+  const statusLabel = isAuthenticated ? '套餐' : '状态';
+  // 调试区仅展示“已裁剪”的最近事件，避免弹窗一次性渲染过多数据。
   const debugEvents = Array.isArray(activationDebugSnapshot?.recentEvents) ? activationDebugSnapshot.recentEvents : [];
 
   // 订阅更新回调
@@ -78,40 +82,42 @@ function AccountSyncModal({
               <div className="summary-item-value">{authEmail || '未登录'}</div>
             </div>
             <div className="summary-item">
-              <div className="summary-item-label">套餐</div>
+              <div className="summary-item-label">{statusLabel}</div>
               <div className="summary-item-value">{effectivePlan}</div>
             </div>
           </div>
 
-          <div className="summary-grid">
-            <div className="summary-item">
-              <div className="summary-item-label">今日灵感</div>
-              <div className="summary-item-value">{captureQuotaLabel}</div>
+          {isAuthenticated ? (
+            <div className="summary-grid">
+              <div className="summary-item">
+                <div className="summary-item-label">今日灵感</div>
+                <div className="summary-item-value">{captureQuotaLabel}</div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-item-label">今日导出</div>
+                <div className="summary-item-value">{markdownExportQuotaLabel}</div>
+              </div>
             </div>
-            <div className="summary-item">
-              <div className="summary-item-label">今日导出</div>
-              <div className="summary-item-value">{markdownExportQuotaLabel}</div>
-            </div>
-          </div>
-
-          {accountNotice ? (
-            <div className={`account-inline-notice account-inline-notice-${accountNotice.type || 'info'}`}>{accountNotice.text}</div>
           ) : null}
 
+          {accountNotice ? <InlineMessage message={accountNotice} /> : null}
+
           {/* 订阅管理 */}
-          {authEmail && (
+          {isAuthenticated && (
             <div className="mt-6 border-t border-gray-200 pt-6">
               <SubscriptionManager onSubscriptionUpdated={handleSubscriptionUpdated} />
             </div>
           )}
 
-          <div className="account-actions-grid">
-            <button type="button" className="btn-secondary" onClick={onRefreshEntitlements} disabled={isRefreshingEntitlements}>
-              {isRefreshingEntitlements ? '刷新中...' : '刷新权益'}
-            </button>
-          </div>
+          {isAuthenticated ? (
+            <div className="account-actions-grid">
+              <button type="button" className="btn-secondary" onClick={onRefreshEntitlements} disabled={isRefreshingEntitlements}>
+                {isRefreshingEntitlements ? '刷新中...' : '刷新权益'}
+              </button>
+            </div>
+          ) : null}
           <div className={`account-actions-grid account-actions-auth ${isAuthActionsSingle ? 'account-actions-auth-single' : ''}`}>
-            {authEmail ? (
+            {isAuthenticated ? (
               <>
                 {canUpgradePlan ? (
                   <button type="button" className="btn-primary" onClick={onUpgradePlan}>
@@ -141,6 +147,7 @@ function AccountSyncModal({
 
           {activationDebugAvailable ? (
             <div className="account-debug-panel">
+              {/* 开发调试面板：仅在 DEV 环境显示，用于快速核验埋点是否按预期触发。 */}
               <button
                 type="button"
                 className="btn-secondary btn-mini account-debug-toggle"
@@ -166,6 +173,7 @@ function AccountSyncModal({
                   </div>
 
                   <div className="account-actions-grid account-debug-actions">
+                    {/* 刷新/清空/导出三按钮用于埋点联调，不影响正式业务流程。 */}
                     <button type="button" className="btn-secondary btn-mini" onClick={onRefreshActivationDebug} disabled={isActivationDebugLoading}>
                       {isActivationDebugLoading ? '刷新中...' : '刷新快照'}
                     </button>

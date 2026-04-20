@@ -3,11 +3,22 @@ import { useEffect, useState } from 'react';
 export function useUiMessage() {
   const [uiMessage, setUiMessage] = useState(null);
 
-  const showUiMessage = (text, type = 'info') => {
-    if (!text) return;
+  const showUiMessage = (input, type = 'info') => {
+    if (!input) return;
+
+    if (typeof input === 'object' && !Array.isArray(input)) {
+      if (!input.text) return;
+      setUiMessage({
+        ...input,
+        type: input.type || type,
+        at: Date.now()
+      });
+      return;
+    }
+
     setUiMessage({
       type,
-      text,
+      text: String(input),
       at: Date.now()
     });
   };
@@ -20,7 +31,7 @@ export function useUiMessage() {
     if (!uiMessage) return undefined;
     const timer = window.setTimeout(() => {
       setUiMessage(null);
-    }, 3200);
+    }, Number(uiMessage.durationMs || 3200));
     return () => window.clearTimeout(timer);
   }, [uiMessage]);
 

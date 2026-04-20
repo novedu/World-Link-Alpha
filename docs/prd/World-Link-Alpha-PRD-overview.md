@@ -1,7 +1,7 @@
 # World-Link Alpha PRD
 
 - Owner: 产品 / 前端 / 后端联合维护
-- Last Updated: 2026-04-19
+- Last Updated: 2026-04-21
 - Status: active
 - Scope: 定义当前产品定位、能力边界、迭代路线与评分基线
 
@@ -89,7 +89,7 @@ World-Link Alpha 是一个 **Chrome Sidepanel + 网页采集弹窗** 的双入�
 
 ### 形态演进策略（新增）
 - 插件到 Web/后台管理的落地策略，采用“**非微前端 + 多应用**”路径。
-- 演进触发节点与阶段目标详见：`prd/web-admin-evolution-roadmap.md`。
+- 演进触发节点与阶段目标详见：`docs/prd/web-admin-evolution-roadmap.md`。
 
 ---
 
@@ -178,7 +178,7 @@ World-Link Alpha 是一个 **Chrome Sidepanel + 网页采集弹窗** 的双入�
 - 支持分步 Tour 引导（高亮目标区域 + 指示箭头 + 自动滚动 + 上一步/下一步 + 即时动作）
 - 支持引导蒙层目标穿透点击（仅高亮目标可直接操作）
 - Tour 支持按步骤完成状态自动推进，并从首个未完成步骤启动
-- 已接入激活埋点与引导行为埋点（事件字典见 `prd/activation-event-dictionary.md`）
+- 已接入激活埋点与引导行为埋点（事件字典见 `docs/prd/activation-event-dictionary.md`）
 - 账号弹窗提供开发调试入口（仅开发构建可见）：可查看激活埋点快照、刷新/清空事件，并导出 JSON
 
 ### C. Sidepanel 一级任务架构
@@ -270,7 +270,7 @@ World-Link Alpha 是一个 **Chrome Sidepanel + 网页采集弹窗** 的双入�
 
 ### 视觉差距
 - Sidepanel 与网页采集弹窗已统一为白底卡片体系
-- 风格基线已确定并落地（`design/style-decision-v1.md` + `stylekit-theme-v1.css`）
+- 风格基线已确定并落地（`docs/design/style-decision-v1.md` + `stylekit-theme-v1.css`）
 - 关系图谱区已新增状态提示条（渲染模式/采样说明/分批加载提示）与“清除焦点”操作
 - 需要继续做细节打磨（图标体系、层级一致性、过渡动画）
 
@@ -601,4 +601,4 @@ flowchart TD
 | Free→Pro 转化率 | 触发门禁后 14 天内升级比例 | >= 3% |
 | 发布可用性 | RC 阶段 P0 必过项通过率 | 100% |
 
-执行排期与证据模板见：`prd/score-90-execution-plan.md`。
+执行排期与证据模板见：`docs/prd/score-90-execution-plan.md`。

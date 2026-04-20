@@ -10,6 +10,16 @@
 
 ### 1.2 环境变量
 
+#### 环境文件分层（推荐）
+
+- 后端：
+  - `backend/.env.development`
+  - `backend/.env.test`
+  - `backend/.env.production`
+- 前端 Sidepanel：
+  - `sidepanel/.env.development`
+  - `sidepanel/.env.production`
+
 #### 后端环境变量
 | 变量名 | 描述 | 示例值 |
 |-------|------|--------|
@@ -23,8 +33,7 @@
 #### 前端环境变量
 | 变量名 | 描述 | 示例值 |
 |-------|------|--------|
-| VITE_API_URL | 后端API地址 | `http://localhost:3001` |
-| VITE_APP_NAME | 应用名称 | `World Link Alpha` |
+| VITE_API_BASE_URL | 后端API地址（含 `/api` 前缀） | `http://localhost:3001/api` |
 
 ## 2. 部署方式
 
@@ -127,7 +136,9 @@
    npm run build
    ```
 
-4. 将构建产物部署到静态文件服务器（如Nginx）
+4. 确保生产环境变量已配置（`sidepanel/.env.production`）
+
+5. 将构建产物部署到静态文件服务器（如Nginx）
 
 ## 3. 数据库管理
 

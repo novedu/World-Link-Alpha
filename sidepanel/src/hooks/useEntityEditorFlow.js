@@ -4,6 +4,7 @@ import { captureService } from '../services/capture.service.ts';
 import { useEntityEditorState } from './useEntityEditorState';
 import { useEntityEditorImageFlow } from './useEntityEditorImageFlow';
 import { useEntityEditorAiFlow } from './useEntityEditorAiFlow';
+import { buildAccessRecoveryMessage } from '../utils/accessRecovery.js';
 
 function normalizeImageAsset(item) {
   const imageUrl = String(item?.imageUrl || '').trim();
@@ -25,7 +26,8 @@ export function useEntityEditorFlow({
   entityRelations,
   setActiveTab,
   onDataChanged,
-  onUiMessage
+  onUiMessage,
+  openAccountModal
 }) {
   const state = useEntityEditorState();
 
@@ -56,7 +58,8 @@ export function useEntityEditorFlow({
     selectedWorldId,
     isGeneratingImage,
     setIsGeneratingImage,
-    onUiMessage
+    onUiMessage,
+    openAccountModal
   });
 
   const aiFlow = useEntityEditorAiFlow({
@@ -74,7 +77,8 @@ export function useEntityEditorFlow({
     conflictCheckMeta,
     setConflictCheckMeta,
     aiAssistProfile,
-    onUiMessage
+    onUiMessage,
+    openAccountModal
   });
 
   const handleStartNewEntity = () => {
@@ -292,7 +296,13 @@ export function useEntityEditorFlow({
       onUiMessage?.('设定已保存', 'success');
     } catch (error) {
       console.error('[Sidepanel] handleSaveEntity error:', error);
-      onUiMessage?.('保存失败，请稍后重试', 'error');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal
+      });
+      onUiMessage?.(accessRecovery || {
+        type: 'error',
+        text: '保存失败，请稍后重试'
+      });
     } finally {
       setIsSavingEntity(false);
     }

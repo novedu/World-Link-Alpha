@@ -10,7 +10,7 @@ import { checkFeatureAccess, getEntitlementWithUsage } from '../src/services/ent
 
 test('e2e core flow: auth -> capture -> entity -> bind -> entitlement', async () => {
   const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
-  const password = 'passw0rd-123';
+  const password = 'Passw0rd-123';
 
   let userId = '';
 
@@ -51,7 +51,7 @@ test('e2e core flow: auth -> capture -> entity -> bind -> entitlement', async ()
       name: '银松城',
       type: 'location',
       summary: '北境贸易要塞',
-      tags: ['城邦', '北境'],
+      tags: '城邦,北境',
       sourceUrl: 'https://example.com/story',
       sourceTitle: '设定灵感来源',
     });

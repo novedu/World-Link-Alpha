@@ -48,7 +48,7 @@ const manifest = {
     'build',
   ],
   rollback: {
-    playbook: 'ops/release/rollback-playbook.md',
+    playbook: 'docs/ops/release/rollback-playbook.md',
     restoreCommand: 'node scripts/ops/restore-db.mjs --from <backup-file> --apply',
   },
 };

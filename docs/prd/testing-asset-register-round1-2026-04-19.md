@@ -34,6 +34,6 @@
 
 ## 4. 下一步
 
-1. 按 `prd/e2e-acceptance-checklist.md` 完成 P0 必过项并补证据。
+1. 按 `docs/prd/e2e-acceptance-checklist.md` 完成 P0 必过项并补证据。
 2. 完成 `auth/entitlements/timeline` smoke 自动化。
 3. 更新本台账为 Round 1 完整执行结论（Go / No-Go）。

@@ -1,11 +1,11 @@
 # UI Design Spec: World-Link Alpha
 
 - Design Source: StyleKit 风格库 + World-Link 产品约束
-- Design Version: v1.21
-- Last Synced: 2026-04-19
+- Design Version: v1.26
+- Last Synced: 2026-04-21
 
-> 风格决策基线见：`design/style-decision-v1.md`  
-> 执行清单见：`design/style-execution-checklist-v1.md`  
+> 风格决策基线见：`docs/design/style-decision-v1.md`  
+> 执行清单见：`docs/design/style-execution-checklist-v1.md`  
 > 代码 token 文件：`sidepanel/src/styles/stylekit-theme-v1.css`
 
 ## 1. Design Positioning
@@ -214,6 +214,20 @@ Sidepanel 首屏必须按以下顺序判断状态，禁止把不同性质的状�
 ### `AccountModal`
 - 操作区分为两层：系统动作（刷新套餐/迁移）与账号动作（登录/升级/退出）
 - 在 `<=420px` 自动收敛为单列按钮布局，避免横向挤压
+- 由账号弹窗触发的反馈必须优先显示在弹窗内部，不把成功/失败提示抛到主面板顶部
+- 退出登录成功后应关闭弹窗，并直接回到未登录引导态
+- 访客态账号弹窗只保留身份说明与 `登录 / 注册` 入口，不展示配额摘要与刷新权益动作
+- 从访客态账号弹窗进入 `登录 / 注册` 时，应先关闭当前弹窗，再打开表单弹窗，避免双层弹窗叠加
+- 登录过期或会话失效时，不应强制弹出账号弹窗；优先用非阻断提示引导重新登录
+- 若账号弹窗此时已经打开，过期提示应直接落在弹窗内部，并同步收正访客状态
+- 套餐到期与权限不足的恢复动作统一落到账号面板处理，不再让用户自己猜下一步入口
+
+### `ActionDialog`
+- 承接登录、注册与轻量创建流程的表单输入
+- 校验错误、提交失败与必填提示必须显示在弹窗内部，不允许把反馈渲染到背后的主工作区
+- 当 `ActionDialog` 打开时，主面板顶部的全局 `InlineMessage` 应暂时隐藏，避免前后景反馈混叠
+- 当表单来自访客账号弹窗时，应视为“继续当前登录流程”，而不是新增一层上下文
+- 如果创建世界 / 作品被套餐上限拦截，弹窗内提示必须明确说明原因，并提供去账号面板处理的下一步
 
 ### `GlobalContextCard`
 - 负责世界观库与当前作品的选择

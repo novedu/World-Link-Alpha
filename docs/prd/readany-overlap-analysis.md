@@ -151,4 +151,4 @@ ReadAny 可以作为“AI 如何嵌入知识工作流”的优秀参考，但不
 
 - ReadAny GitHub: <https://github.com/codedogQBY/ReadAny>
 - ReadAny README 中的定位、功能、技术栈与许可证说明：<https://github.com/codedogQBY/ReadAny#readme>
-- World-Link Alpha 总览 PRD：`prd/World-Link-Alpha-PRD-overview.md`
+- World-Link Alpha 总览 PRD：`docs/prd/World-Link-Alpha-PRD-overview.md`

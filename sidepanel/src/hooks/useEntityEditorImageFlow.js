@@ -1,5 +1,6 @@
 import { timelineService } from '../services/timeline.service.ts';
 import { aiService } from '../services/ai.service.ts';
+import { buildAccessRecoveryMessage } from '../utils/accessRecovery.js';
 
 function normalizeIsoTimestamp(value) {
   const input = String(value || '').trim();
@@ -51,7 +52,8 @@ export function useEntityEditorImageFlow({
   selectedWorldId,
   isGeneratingImage,
   setIsGeneratingImage,
-  onUiMessage
+  onUiMessage,
+  openAccountModal
 }) {
   const fetchEntityImageAssets = async (entityId) => {
     const normalizedEntityId = String(entityId || '').trim();
@@ -234,7 +236,13 @@ export function useEntityEditorImageFlow({
       }
     } catch (error) {
       console.error('[Sidepanel] handleGenerateEntityImage error:', error);
-      onUiMessage?.(error?.message || '配图生成失败，请稍后重试', 'error');
+      const accessRecovery = buildAccessRecoveryMessage(error, {
+        openAccountModal
+      });
+      onUiMessage?.(accessRecovery || {
+        type: 'error',
+        text: error?.message || '配图生成失败，请稍后重试'
+      });
     } finally {
       setIsGeneratingImage(false);
     }

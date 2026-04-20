@@ -32,7 +32,7 @@ function WorkspaceLaunchStateCard({ variant, onSignIn, onRegister, onRetry }) {
           <div className="launch-preview" aria-label="登录后工作区预览">
             <div className="launch-preview-head">
               <p className="launch-preview-title">登录后工作区预览</p>
-              <span className="launch-preview-status">自动同步</span>
+              <span className="launch-preview-status">登录后同步</span>
             </div>
             <div className="launch-preview-rows">
               {previewRows.map((row) => (

@@ -5,6 +5,8 @@ import { entitlementService } from '../services/entitlement.service';
 import { getToken } from '../lib/http/token';
 
 function buildUnauthedRuntimeContext() {
+  // 当前版本默认“云端优先”：未登录也保持 cloud 模式，
+  // 区别仅在于权限和可用能力（free + 未鉴权），而不是切到 local 模式。
   const base = createDefaultRuntimeContext();
   return {
     ...base,
@@ -85,7 +87,7 @@ function mapEntitlementToRuntimeContext(snapshot) {
   };
 }
 
-export function useRuntimeContext({ onUiMessage, onAuthStateChange }) {
+export function useRuntimeContext({ onAuthStateChange }) {
   const [runtimeContext, setRuntimeContext] = useState(() => buildUnauthedRuntimeContext());
   const [authSession, setAuthSession] = useState(null);
   const [runtimeConfigDraft] = useState(() => ({
@@ -167,23 +169,45 @@ export function useRuntimeContext({ onUiMessage, onAuthStateChange }) {
 
   const handleSignOut = async () => {
     try {
+      setAccountNotice({
+        type: 'info',
+        text: '正在退出登录...'
+      });
       await authService.logout();
       setAuthSession(null);
       await refreshRuntimeContext();
       await onAuthStateChange?.();
-      onUiMessage?.('已退出登录', 'success');
+      setAccountNotice({
+        type: 'success',
+        text: '已退出登录'
+      });
+      return true;
     } catch {
-      onUiMessage?.('退出失败，请稍后重试', 'error');
+      setAccountNotice({
+        type: 'error',
+        text: '退出失败，请稍后重试'
+      });
+      return false;
     }
   };
 
   const handleUpgradeLocalPlan = async () => {
     if (!authSession?.email) return;
-    onUiMessage?.('请在账号面板里管理套餐', 'info');
+    setAccountNotice({
+      type: 'info',
+      text: '请在账号面板里管理套餐'
+    });
   };
 
   const handleRefreshEntitlements = async () => {
     if (isRefreshingEntitlements) return;
+    if (!authSession?.email) {
+      setAccountNotice({
+        type: 'info',
+        text: '登录后可查看并刷新权益'
+      });
+      return false;
+    }
     setAccountNotice({
       type: 'info',
       text: '正在刷新权益...'
@@ -196,12 +220,13 @@ export function useRuntimeContext({ onUiMessage, onAuthStateChange }) {
         type: 'success',
         text: '权益已刷新'
       });
+      return true;
     } catch {
       setAccountNotice({
         type: 'error',
         text: '刷新失败，请稍后再试'
       });
-      onUiMessage?.('刷新权益失败', 'error');
+      return false;
     } finally {
       setIsRefreshingEntitlements(false);
     }

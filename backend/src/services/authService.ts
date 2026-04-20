@@ -34,6 +34,25 @@ export interface AuthResult {
   token: string;
 }
 
+interface AuthTokenPayload {
+  userId: string;
+  email: string;
+  plan: string;
+}
+
+interface PublicUserProfile {
+  id: string;
+  email: string;
+  plan: string;
+  createdAt: Date;
+}
+
+const specialCharacters = new Set('!@#$%^&*()_+-=[]{};:\'"\\|,.<>/?'.split(''));
+
+function hasSpecialCharacter(password: string): boolean {
+  return password.split('').some((character) => specialCharacters.has(character));
+}
+
 function validatePasswordStrength(password: string): string[] {
   const errors: string[] = [];
   
@@ -53,7 +72,7 @@ function validatePasswordStrength(password: string): string[] {
     errors.push('密码必须包含至少一个数字');
   }
   
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!hasSpecialCharacter(password)) {
     errors.push('密码必须包含至少一个特殊字符');
   }
   
@@ -198,11 +217,11 @@ export async function logoutUser(token: string): Promise<void> {
   }
 }
 
-export async function validateToken(token: string) {
+export async function validateToken(token: string): Promise<AuthTokenPayload | null> {
   logger.debug('令牌验证请求', { token: token.substring(0, 20) + '...' });
   
   const cacheKey = `token:${token}`;
-  const cachedResult = cacheService.get(cacheKey);
+  const cachedResult = cacheService.get<AuthTokenPayload | null>(cacheKey);
   
   if (cachedResult) {
     logger.debug('令牌验证缓存命中');
@@ -210,11 +229,7 @@ export async function validateToken(token: string) {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      userId: string;
-      email: string;
-      plan: string;
-    };
+    const decoded = jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
 
     // 检查会话是否存在
     const session = await prisma.session.findUnique({
@@ -240,11 +255,11 @@ export async function validateToken(token: string) {
   }
 }
 
-export async function getUserById(userId: string) {
+export async function getUserById(userId: string): Promise<PublicUserProfile | null> {
   logger.debug('获取用户信息请求', { userId });
   
   const cacheKey = `user:${userId}`;
-  const cachedUser = cacheService.get(cacheKey);
+  const cachedUser = cacheService.get<PublicUserProfile>(cacheKey);
   
   if (cachedUser) {
     logger.debug('用户信息缓存命中', { userId });

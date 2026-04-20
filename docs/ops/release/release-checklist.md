@@ -5,13 +5,13 @@
 1. 执行完整门禁
 
 ```bash
-npm run verify
+RUN_SOCKET_E2E=1 npm run verify
 ```
 
 2. 执行核心链路 E2E smoke
 
 ```bash
-npm run test:e2e
+RUN_SOCKET_E2E=1 npm run test:e2e
 ```
 
 3. 执行一次数据库备份

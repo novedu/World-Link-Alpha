@@ -174,6 +174,7 @@ function App(props) {
   const shouldShowBlockingError = Boolean(error) && !authRequired && !loading && !hasWorkspaceData;
   const shouldShowWorkspaceShell = !shouldShowStartupLoading && !shouldShowGuestLaunch && !shouldShowBlockingError;
   const shouldShowHeaderRefresh = shouldShowWorkspaceShell;
+  const shouldShowTopUiMessage = Boolean(uiMessage) && !actionDialog?.open;
 
   const workspaceErrorMessage = error && hasWorkspaceData
     ? {
@@ -183,6 +184,23 @@ function App(props) {
         actions: [{ label: '重新加载', onClick: onRefresh }]
       }
     : null;
+
+  const handleAccountSignOut = async () => {
+    const signedOut = await onSignOut?.();
+    if (signedOut) {
+      onCloseAccountModal?.();
+    }
+  };
+
+  const handleAccountSignIn = async () => {
+    onCloseAccountModal?.();
+    await onSignIn?.();
+  };
+
+  const handleAccountRegister = async () => {
+    onCloseAccountModal?.();
+    await onRegister?.();
+  };
 
   return (
     <div className="app-shell min-h-screen">
@@ -197,7 +215,7 @@ function App(props) {
           isGuestView={shouldShowGuestLaunch}
         />
 
-        <InlineMessage message={uiMessage} onClose={onClearUiMessage} />
+        {shouldShowTopUiMessage ? <InlineMessage message={uiMessage} onClose={onClearUiMessage} /> : null}
 
         {shouldShowStartupLoading && (
           <div className="status-card status-card-loading">
@@ -394,9 +412,9 @@ function App(props) {
           onRefreshActivationDebug={onRefreshActivationDebug}
           onClearActivationDebug={onClearActivationDebug}
           onExportActivationDebug={onExportActivationDebug}
-          onSignOut={onSignOut}
-          onSignIn={onSignIn}
-          onRegister={onRegister}
+          onSignOut={handleAccountSignOut}
+          onSignIn={handleAccountSignIn}
+          onRegister={handleAccountRegister}
           helperText={helperText}
           cloudLastErrorHint={cloudLastErrorHint}
         />

@@ -52,8 +52,8 @@
 
 每个 Gate 状态变化时，必须同步更新：
 
-- `prd/World-Link-Alpha-PRD-overview.md`
-- `prd/TODO.md`
-- `prd/plugin-to-web-migration.md`
+- `docs/prd/World-Link-Alpha-PRD-overview.md`
+- `docs/prd/TODO.md`
+- `docs/prd/plugin-to-web-migration.md`
 
 并在 `TODO` 中补充证据链接与结论（Go / No-Go）。

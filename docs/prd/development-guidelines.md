@@ -5,7 +5,7 @@
 ## 1. 适用范围
 
 - 前端插件代码：`sidepanel/`、`content.js`、`background.js`
-- 产品文档：`prd/`、`design/`
+- 产品文档：`docs/prd/`、`docs/design/`
 
 ## 2. 当前基线（2026-04-19）
 
@@ -93,16 +93,16 @@ background/
 - 消息类型常量化：禁止在多个文件散落硬编码字符串
 - 统一响应结构：`{ success, error?, traceId?, data? }`
 - 新增消息协议时，必须同步更新：
-  - `prd/frontend-architecture-messaging.md`
+  - `docs/prd/frontend-architecture-messaging.md`
   - 调用方（sidepanel/content）
   - `background.js` 处理器
 
 ## 5. UI/UX 实现规范
 
-- 视觉规范唯一来源：`design/ui-design-spec.md`
-- 风格决策基线：`design/style-decision-v1.md`
+- 视觉规范唯一来源：`docs/design/ui-design-spec.md`
+- 风格决策基线：`docs/design/style-decision-v1.md`
 - 主题 token 文件：`sidepanel/src/styles/stylekit-theme-v1.css`
-- 交互规范唯一来源：`design/ux-spec.md`
+- 交互规范唯一来源：`docs/design/ux-spec.md`
 - Sidepanel 约束：
   - 宽度适配 `320–400px` 优先
   - 禁止横向滚动条
@@ -114,9 +114,9 @@ background/
 ## 6. 文档治理规范
 
 - 变更功能时，至少更新：
-  - `prd/World-Link-Alpha-PRD-overview.md`
-  - `prd/TODO.md`
-- UI 或交互变化时，必须同步 `design/` 规范
+  - `docs/prd/World-Link-Alpha-PRD-overview.md`
+  - `docs/prd/TODO.md`
+- UI 或交互变化时，必须同步 `docs/design/` 规范
 - 每次提交前运行：
   - `node scripts/check-docs-consistency.mjs`
 
@@ -158,6 +158,8 @@ background/
 
 - **类型要求**：全部使用 axios 官方类型与泛型，禁止 `any`
 - **配置文件**：`sidepanel/src/lib/http/config.ts`，支持 `VITE_API_BASE_URL` 覆盖
+- **环境分层**：`sidepanel/.env.development`、`sidepanel/.env.production`（按 Vite 模式自动生效）
+- **后端分层**：`backend/.env.development`、`backend/.env.test`、`backend/.env.production`（按 `NODE_ENV` 自动加载）
 - **拦截器**：统一添加 `x-request-id` 追踪头
 - **认证过期处理**：使用 `setOnAuthExpired(callback)` 机制注入回调，不直接依赖 Chrome runtime
 - **URL 约定**：路径无 `/v1` 前缀，由后端统一处理

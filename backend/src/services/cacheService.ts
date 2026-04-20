@@ -1,5 +1,5 @@
 class CacheService {
-  private cache: Map<string, { value: any; expiry: number }>;
+  private cache: Map<string, { value: unknown; expiry: number }>;
   private defaultTTL: number;
 
   constructor() {
@@ -10,21 +10,21 @@ class CacheService {
 
   /**
    * 设置缓存
-   * @param key 缓存键
-   * @param value 缓存值
-   * @param ttl 过期时间（毫秒）
-   */
-  set(key: string, value: any, ttl: number = this.defaultTTL): void {
+  * @param key 缓存键
+  * @param value 缓存值
+  * @param ttl 过期时间（毫秒）
+  */
+  set<T>(key: string, value: T, ttl: number = this.defaultTTL): void {
     const expiry = Date.now() + ttl;
     this.cache.set(key, { value, expiry });
   }
 
   /**
-   * 获取缓存
-   * @param key 缓存键
-   * @returns 缓存值，如果不存在或已过期则返回null
-   */
-  get(key: string): any {
+  * 获取缓存
+  * @param key 缓存键
+  * @returns 缓存值，如果不存在或已过期则返回null
+  */
+  get<T>(key: string): T | null {
     const item = this.cache.get(key);
     if (!item) {
       return null;
@@ -35,7 +35,7 @@ class CacheService {
       return null;
     }
 
-    return item.value;
+    return item.value as T;
   }
 
   /**
@@ -57,7 +57,7 @@ class CacheService {
    * 开始定期清理过期缓存的定时器
    */
   private startCleanupInterval(): void {
-    setInterval(() => {
+    const cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [key, item] of this.cache.entries()) {
         if (now > item.expiry) {
@@ -65,6 +65,7 @@ class CacheService {
         }
       }
     }, 60000); // 每分钟清理一次
+    cleanupTimer.unref?.();
   }
 
   /**

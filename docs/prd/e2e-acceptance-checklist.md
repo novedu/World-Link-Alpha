@@ -1,7 +1,7 @@
 # E2E 发版验收清单
 
 - Owner: 产品负责人
-- Last Updated: 2026-04-19
+- Last Updated: 2026-04-21
 - Status: active
 - Scope: 发版前必须执行的端到端验收场景与通过标准
 
@@ -28,18 +28,19 @@
 | E2E-11 | P2 | 手工 | 生图能力 v0 | 请求触发成功，失败可提示并可重试 | in_progress | 已完成代码闭环，待补录屏 |
 | E2E-12 | P1 | 自动化 + 手工 | AI 套餐门禁 | Free 禁用 AI、Pro 开启 AI | in_progress | `backend/test/e2e-entitlement-guards.test.ts` |
 
-## 3. 自动化快照（2026-04-19）
+## 3. 自动化快照（2026-04-21）
 
 - 命令：`npm run verify`
 - 结果：通过（`lint + typecheck + check:docs + test + build` 全绿）
 - 覆盖说明：
   - 已自动化覆盖核心链路：`auth -> capture -> entity -> bind -> entitlement`
   - 已新增 `e2e-entitlement-guards`：覆盖 world 配额、导出计量门禁、Free/Pro AI 开关
-  - AI 路由级门禁已覆盖；AI 冲突/时间轴/生图仍需补齐专项自动化 / 手工 E2E
+  - AI 路由级门禁需要端口监听能力；本地受限环境可 `skip`，CI 通过 `RUN_SOCKET_E2E=1` 强制执行
+  - AI 冲突/时间轴/生图仍需补齐专项自动化 / 手工 E2E
 
 ## 4. 执行结论
 
-- 本轮执行日期：2026-04-19（自动化快照）
+- 本轮执行日期：2026-04-21（自动化快照）
 - 当前结论：No-Go（P0 手工项未完成）
 - 阻断项：
   1. E2E-01 / E2E-03 / E2E-05 尚未补齐手工证据

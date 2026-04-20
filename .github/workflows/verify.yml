@@ -33,3 +33,5 @@ jobs:
 
       - name: Run verify pipeline
         run: npm run verify
+        env:
+          RUN_SOCKET_E2E: '1'

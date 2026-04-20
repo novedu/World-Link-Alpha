@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
+// 找到第一步“未完成”步骤，用于引导默认落点。
 function findFirstIncompleteStepIndex(steps) {
   if (!Array.isArray(steps) || steps.length === 0) return 0;
   const index = steps.findIndex((step) => !step?.done);
   return index >= 0 ? index : 0;
 }
 
+// 从当前步骤向后找下一个“未完成”步骤，用于自动推进。
 function findNextIncompleteStepIndex(steps, fromIndex) {
   if (!Array.isArray(steps) || steps.length === 0) return -1;
   for (let index = Math.max(0, fromIndex + 1); index < steps.length; index += 1) {
@@ -36,6 +38,8 @@ export function useActivationFlow({
   activationCompletedTrackedRef,
   trackActivation
 }) {
+  // 五步激活的完成态来自真实业务数据，不做额外“临时状态”缓存，
+  // 这样可以保证激活卡与真实数据一致。
   const hasWorld = worlds.length > 0;
   const hasBook = books.length > 0;
   const hasEntity = entities.length > 0;
@@ -151,6 +155,8 @@ export function useActivationFlow({
     ? Math.round((activationCompletedCount / activationTotalCount) * 100)
     : 0;
 
+  // 只在激活指标会话准备完成后，追踪“步骤完成”和“全部完成”事件。
+  // 通过 prev refs 做 diff，避免重复上报同一步骤。
   useEffect(() => {
     if (!activationMetricsReadyRef.current) return;
 

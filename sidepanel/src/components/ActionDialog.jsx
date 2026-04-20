@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { useDialogA11y } from '../hooks/useDialogA11y.js';
+import InlineMessage from './InlineMessage';
 
 function ActionDialog({ actionDialog, actionDialogValues, dialogSubmitting, onClose, onSubmit, onFieldChange }) {
   const isOpen = Boolean(actionDialog?.open);
@@ -40,6 +41,8 @@ function ActionDialog({ actionDialog, actionDialogValues, dialogSubmitting, onCl
             {actionDialog.message}
           </p>
         ) : null}
+
+        {actionDialog.notice ? <InlineMessage message={actionDialog.notice} /> : null}
 
         {dialogFields.length > 0 ? (
           <div className="field-stack">

@@ -113,10 +113,10 @@ Web App
 
 ## 5. 与现有代码/文档的衔接
 
-- 消息协议基线：`prd/frontend-architecture-messaging.md`
-- 云端与商业化基线：`prd/freemium-cloud-architecture.md`
-- 工程约束基线：`prd/development-guidelines.md`
-- 总体产品边界：`prd/World-Link-Alpha-PRD-overview.md`
+- 消息协议基线：`docs/prd/frontend-architecture-messaging.md`
+- 云端与商业化基线：`docs/prd/freemium-cloud-architecture.md`
+- 工程约束基线：`docs/prd/development-guidelines.md`
+- 总体产品边界：`docs/prd/World-Link-Alpha-PRD-overview.md`
 
 约定：本迁移文档只描述“阶段策略与架构方向”，具体功能变更仍回写总 PRD 与 TODO。
 

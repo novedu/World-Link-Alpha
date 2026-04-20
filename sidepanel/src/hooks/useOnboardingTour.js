@@ -23,6 +23,8 @@ export function useOnboardingTour({
   tourAutoAdvanceSignatureRef,
   tourCompletionNoticeRef
 }) {
+  // 引导步骤的完成态与业务状态强绑定：
+  // 已创建世界/作品/设定即视为完成，确保引导不会和真实数据冲突。
   const hasWorld = worlds.length > 0;
   const hasBook = books.length > 0;
   const hasEntity = entities.length > 0;
@@ -103,6 +105,8 @@ export function useOnboardingTour({
     return onboardingTourSteps.every((step) => step.done);
   }, [onboardingTourSteps]);
 
+  // Tour 开启后，永远把当前步骤对齐到“首个未完成步骤”，
+  // 避免用户卡在已完成步骤上反复点击下一步。
   const effectiveOnboardingTourStepIndex = useMemo(() => {
     if (!isOnboardingTourOpen) return onboardingTourStepIndex;
     return findFirstIncompleteStepIndex(onboardingTourSteps);
@@ -175,6 +179,7 @@ export function useOnboardingTour({
     step.onAction();
   };
 
+  // 记录 Tour 打开/关闭事件，便于分析引导入口到退出的漏斗。
   useEffect(() => {
     if (!activationMetricsReadyRef.current) return;
     const wasOpen = tourOpenStateRef.current;
@@ -199,6 +204,7 @@ export function useOnboardingTour({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboardingTourVisible, effectiveOnboardingTourStepIndex, onboardingTourSteps, trackActivation]);
 
+  // 记录“步骤被看到”事件；同一步只记一次，避免滚动/重渲染重复埋点。
   useEffect(() => {
     if (!activationMetricsReadyRef.current || !isOnboardingTourVisible) return;
 
@@ -216,6 +222,8 @@ export function useOnboardingTour({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboardingTourVisible, effectiveOnboardingTourStepIndex, onboardingTourSteps, trackActivation]);
 
+  // 自动推进埋点：当外部业务状态变化导致步骤跳转时，记录 from/to。
+  // signature 用于防抖，避免同一次状态变化反复上报。
   useEffect(() => {
     if (!activationMetricsReadyRef.current || !isOnboardingTourVisible || onboardingTourSteps.length === 0) {
       tourAutoAdvanceSignatureRef.current = '';
@@ -250,6 +258,7 @@ export function useOnboardingTour({
     trackActivation
   ]);
 
+  // 全部完成后给出一次性提示，并发送“all_completed”事件。
   useEffect(() => {
     if (!activationMetricsReadyRef.current) return;
     if (!isOnboardingTourOpen) {
