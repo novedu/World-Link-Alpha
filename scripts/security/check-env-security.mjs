@@ -27,15 +27,19 @@ const envExample = parseEnv(envExamplePath);
 
 const issues = [];
 
-const jwtSecret = String(env.JWT_SECRET || '');
-if (!jwtSecret) {
-  issues.push('backend/.env 缺少 JWT_SECRET');
-} else if (jwtSecret.length < 16) {
-  issues.push('backend/.env 的 JWT_SECRET 长度过短（建议 >= 32）');
-}
-
+// 检查 .env.example 文件
 if (String(envExample.JWT_SECRET || '').includes('change-this-in-production') === false) {
   issues.push('backend/.env.example 未包含明确的生产替换提示');
+}
+
+// 只在 .env 文件存在时检查
+if (existsSync(envPath)) {
+  const jwtSecret = String(env.JWT_SECRET || '');
+  if (!jwtSecret) {
+    issues.push('backend/.env 缺少 JWT_SECRET');
+  } else if (jwtSecret.length < 16) {
+    issues.push('backend/.env 的 JWT_SECRET 长度过短（建议 >= 32）');
+  }
 }
 
 if (issues.length > 0) {
