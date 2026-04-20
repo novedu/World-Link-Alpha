@@ -1,4 +1,4 @@
-import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosRequestHeaders } from 'axios';
 import { ApiError, type ApiResponse, type OnAuthExpiredCallback } from './types';
 import { getToken, clearToken } from './token';
 
@@ -15,7 +15,9 @@ export const setupRequestInterceptor = (axiosInstance: AxiosInstance) => {
   axiosInstance.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
       // 确保 headers 存在
-      config.headers = config.headers || {};
+      if (!config.headers) {
+        config.headers = {} as AxiosRequestHeaders;
+      }
 
       // 自动注入 token
       const token = await getToken();

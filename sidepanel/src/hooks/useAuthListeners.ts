@@ -18,7 +18,10 @@ type AuthRuntimeMessage =
     }
   | {
       type?: string;
-      data?: unknown;
+      data?: {
+        type?: string;
+        message?: string;
+      };
     };
 
 export function useAuthListeners({ showUiMessage, setIsAccountModalOpen }: {

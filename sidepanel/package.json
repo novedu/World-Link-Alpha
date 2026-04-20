@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "check:docs": "node ../scripts/check-docs-consistency.mjs"
+    "check:docs": "node ../scripts/check-docs-consistency.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "axios": "^1.15.0",
@@ -30,6 +31,7 @@
     "globals": "^17.4.0",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
+    "typescript": "^5.8.3",
     "vite": "^8.0.4",
     "vitest": "^4.1.4"
   }
