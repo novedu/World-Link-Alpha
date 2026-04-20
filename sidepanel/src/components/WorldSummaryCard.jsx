@@ -39,65 +39,25 @@ function formatEntityTime(entity) {
   });
 }
 
-function WorldSummaryCard({
-  currentWorld,
-  currentBook,
-  distributionRows,
-  recentEntities,
-  recentCaptures,
-  selectedWorldId,
-  worldQuickRows,
-  onQuickJumpWorld,
-  selectedBookId,
-  booksInWorld,
-  relationScope,
-  onRelationScopeChange,
-  overviewBookGraphId,
-  onOverviewBookGraphChange,
-  worldRelationCount,
-  worldRelationTypeRows,
-  worldRelationPreviewRows,
-  worldRelationGraphEdges,
-  bookRelationCount,
-  bookRelationTypeRows,
-  bookRelationPreviewRows,
-  bookRelationGraphEdges,
-  onGoToTimelineTab
-}) {
+function renderOverviewTitle({ icon, title, meta }) {
+  return (
+    <div className="overview-title-row">
+      <span className="overview-title-badge" aria-hidden="true">
+        {icon}
+      </span>
+      <div className="overview-title-main">
+        <h3 className="overview-title">{title}</h3>
+        {meta ? <p className="overview-title-meta">{meta}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+export function WorldQuickView({ worldQuickRows, selectedWorldId, onQuickJumpWorld }) {
   const [quickKeyword, setQuickKeyword] = useState('');
   const [quickSortBy, setQuickSortBy] = useState('smart');
   const [quickViewMode, setQuickViewMode] = useState('flat');
 
-  const recentActivityRows = [
-    ...recentEntities.map((entity) => ({
-      id: `entity-${entity.id}`,
-      timestamp: Number(entity.updatedAt || entity.createdAt || 0),
-      label: `设定更新 · ${entity.name || '未命名设定'}`,
-      type: '设定',
-      subtype: 'update',
-      note: entity.type || 'other',
-      entityId: entity.id
-    })),
-    ...recentCaptures.map((capture, index) => ({
-      id: `capture-${capture.timestamp || index}-${String(capture.text || '').slice(0, 20)}`,
-      timestamp: Number(capture.timestamp || 0),
-      label: `灵感记录 · ${String(capture.text || '').slice(0, 28)}`,
-      type: '灵感',
-      subtype: 'capture',
-      note: capture.sourceTitle || '未知来源'
-    }))
-  ]
-    .filter((row) => row.timestamp > 0)
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 6);
-
-  const canUseBookScope = Boolean(selectedBookId);
-  const canSwitchBookGraph = Array.isArray(booksInWorld) && booksInWorld.length > 0;
-  const isBookScope = canUseBookScope && relationScope === 'book';
-  const activeRelationCount = isBookScope ? bookRelationCount : worldRelationCount;
-  const activeRelationTypeRows = isBookScope ? bookRelationTypeRows : worldRelationTypeRows;
-  const activeRelationPreviewRows = isBookScope ? bookRelationPreviewRows : worldRelationPreviewRows;
-  const activeRelationGraphEdges = isBookScope ? bookRelationGraphEdges : worldRelationGraphEdges;
   const hasWorldQuickRows = Array.isArray(worldQuickRows) && worldQuickRows.length > 0;
   const normalizedQuickKeyword = String(quickKeyword || '').trim().toLowerCase();
   const quickRowsForView = useMemo(() => {
@@ -165,101 +125,85 @@ function WorldSummaryCard({
     );
   };
 
-  const renderOverviewTitle = ({ icon, title, meta }) => (
-    <div className="overview-title-row">
-      <span className="overview-title-badge" aria-hidden="true">
-        {icon}
-      </span>
-      <div className="overview-title-main">
-        <h3 className="overview-title">{title}</h3>
-        {meta ? <p className="overview-title-meta">{meta}</p> : null}
+  if (!hasWorldQuickRows) {
+    return (
+      <div className="overview-block">
+        {renderOverviewTitle({ icon: '跨', title: '世界快览' })}
+        <EmptyStateCard compact icon="库" title="还没有世界数据" description="先建世界，概览会自动出现。" />
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="section-body">
-      <div className="summary-grid">
-        <div className="summary-item">
-          <div className="summary-item-label">当前世界</div>
-          <div className="summary-item-value">{currentWorld?.name || '未选择世界'}</div>
-        </div>
-        <div className="summary-item">
-          <div className="summary-item-label">当前作品</div>
-          <div className="summary-item-value">{currentBook?.title || '全部作品'}</div>
-        </div>
+    <div className="overview-block">
+      {renderOverviewTitle({
+        icon: '跨',
+        title: '世界快览',
+        meta: `${quickRowsForView.length}/${worldQuickRows.length} 个世界${normalizedQuickKeyword ? '（已筛选）' : ''}`
+      })}
+      <div className="world-quick-toolbar">
+        <input
+          className="field-input world-quick-search"
+          value={quickKeyword}
+          onChange={(event) => setQuickKeyword(event.target.value)}
+          placeholder="搜索世界"
+        />
+        <select
+          className="field-input world-quick-sort"
+          value={quickSortBy}
+          onChange={(event) => setQuickSortBy(event.target.value)}
+        >
+          <option value="smart">智能排序</option>
+          <option value="relations">按关系数</option>
+          <option value="entities">按设定数</option>
+          <option value="books">按作品数</option>
+        </select>
+        <select
+          className="field-input world-quick-view"
+          value={quickViewMode}
+          onChange={(event) => setQuickViewMode(event.target.value)}
+        >
+          <option value="flat">平铺列表</option>
+          <option value="grouped">分组视图</option>
+        </select>
       </div>
-
-      <div className="overview-block">
-        {renderOverviewTitle({
-          icon: '跨',
-          title: '世界快览',
-          meta: hasWorldQuickRows
-            ? `${quickRowsForView.length}/${worldQuickRows.length} 个世界${normalizedQuickKeyword ? '（已筛选）' : ''}`
-            : ''
-        })}
-        <div className="world-quick-toolbar">
-          <input
-            className="field-input world-quick-search"
-            value={quickKeyword}
-            onChange={(event) => setQuickKeyword(event.target.value)}
-            placeholder="搜索世界"
-          />
-          <select
-            className="field-input world-quick-sort"
-            value={quickSortBy}
-            onChange={(event) => setQuickSortBy(event.target.value)}
-          >
-            <option value="smart">智能排序</option>
-            <option value="relations">按关系数</option>
-            <option value="entities">按设定数</option>
-            <option value="books">按作品数</option>
-          </select>
-          <select
-            className="field-input world-quick-view"
-            value={quickViewMode}
-            onChange={(event) => setQuickViewMode(event.target.value)}
-          >
-            <option value="flat">平铺列表</option>
-            <option value="grouped">分组视图</option>
-          </select>
-        </div>
-        {quickViewMode === 'grouped' ? <p className="helper-text overview-inline-note">按活跃度分组查看。</p> : null}
-        {hasWorldQuickRows ? (
-          quickRowsForView.length > 0 ? (
-            quickViewMode === 'grouped' ? (
-              <div className="world-quick-group-list">
-                {quickGroupedRows.map((group) => (
-                  <section key={group.key} className="world-quick-group">
-                    <div className="world-quick-group-header">
-                      <span className="world-quick-group-title">{group.label}</span>
-                      <span className="world-quick-group-hint">{group.hint}</span>
-                    </div>
-                    <div className="world-quick-list">
-                      {group.rows.map((row) => renderQuickRow(row))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <div className="world-quick-list">
-                {quickRowsForView.map((row) => renderQuickRow(row))}
-              </div>
-            )
-          ) : (
-            <EmptyStateCard
-              compact
-              icon="筛"
-              title="没有匹配结果"
-              description="换个关键词，或清空筛选。"
-              actions={normalizedQuickKeyword ? [{ label: '清空关键词', onClick: () => setQuickKeyword('') }] : []}
-            />
-          )
+      {quickViewMode === 'grouped' ? <p className="helper-text overview-inline-note">按活跃度分组查看。</p> : null}
+      {quickRowsForView.length > 0 ? (
+        quickViewMode === 'grouped' ? (
+          <div className="world-quick-group-list">
+            {quickGroupedRows.map((group) => (
+              <section key={group.key} className="world-quick-group">
+                <div className="world-quick-group-header">
+                  <span className="world-quick-group-title">{group.label}</span>
+                  <span className="world-quick-group-hint">{group.hint}</span>
+                </div>
+                <div className="world-quick-list">
+                  {group.rows.map((row) => renderQuickRow(row))}
+                </div>
+              </section>
+            ))}
+          </div>
         ) : (
-          <EmptyStateCard compact icon="库" title="还没有世界数据" description="先建世界，概览会自动出现。" />
-        )}
-      </div>
+          <div className="world-quick-list">
+            {quickRowsForView.map((row) => renderQuickRow(row))}
+          </div>
+        )
+      ) : (
+        <EmptyStateCard
+          compact
+          icon="筛"
+          title="没有匹配结果"
+          description="换个关键词，或清空筛选。"
+          actions={normalizedQuickKeyword ? [{ label: '清空关键词', onClick: () => setQuickKeyword('') }] : []}
+        />
+      )}
+    </div>
+  );
+}
 
+export function WorldMetricsView({ distributionRows, recentEntities, recentCaptures }) {
+  return (
+    <>
       <div className="overview-block">
         {renderOverviewTitle({ icon: '类', title: '设定类型' })}
         {distributionRows.length > 0 ? (
@@ -313,117 +257,247 @@ function WorldSummaryCard({
           <EmptyStateCard compact icon="灵" title="还没有灵感" description="划词保存后，这里会自动更新。" />
         )}
       </div>
+    </>
+  );
+}
 
-      <div className="overview-block overview-block-emphasis">
-        {renderOverviewTitle({
-          icon: '图',
-          title: '关系图谱',
-          meta: `${isBookScope ? '作品视角' : '世界视角'} · ${activeRelationCount} 条关系`
-        })}
-        <div className="relation-scope-switch">
-          <button
-            type="button"
-            className={`scope-switch-btn ${!isBookScope ? 'scope-switch-btn-active' : ''}`}
-            onClick={() => onRelationScopeChange?.('world')}
-          >
-            世界视角
-          </button>
-          <button
-            type="button"
-            className={`scope-switch-btn ${isBookScope ? 'scope-switch-btn-active' : ''}`}
-            onClick={() => onRelationScopeChange?.('book')}
-            disabled={!canSwitchBookGraph}
-            title={!canSwitchBookGraph ? '当前世界还没有作品，暂时不能切到作品视角' : ''}
-          >
-            作品视角
-          </button>
-        </div>
-        {isBookScope && canSwitchBookGraph ? (
-          <div className="relation-book-picker">
-            <label className="field-label">查看作品</label>
-            <select
-              className="field-input"
-              value={overviewBookGraphId}
-              onChange={(event) => onOverviewBookGraphChange?.(event.target.value)}
-            >
-              {booksInWorld.map((book) => (
-                <option key={book.id} value={book.id}>
-                  {book.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-        {activeRelationCount > 0 ? (
-          <div className="overview-list relation-overview-stack">
-            <RelationGraphPreviewCard edges={activeRelationGraphEdges} relationCount={activeRelationCount} />
+export function WorldRelationView({
+  relationScope,
+  onRelationScopeChange,
+  overviewBookGraphId,
+  onOverviewBookGraphChange,
+  worldRelationCount,
+  worldRelationTypeRows,
+  worldRelationPreviewRows,
+  worldRelationGraphEdges,
+  bookRelationCount,
+  bookRelationTypeRows,
+  bookRelationPreviewRows,
+  bookRelationGraphEdges,
+  selectedBookId,
+  booksInWorld
+}) {
+  const canUseBookScope = Boolean(selectedBookId);
+  const canSwitchBookGraph = Array.isArray(booksInWorld) && booksInWorld.length > 0;
+  const isBookScope = canUseBookScope && relationScope === 'book';
+  const activeRelationCount = isBookScope ? bookRelationCount : worldRelationCount;
+  const activeRelationTypeRows = isBookScope ? bookRelationTypeRows : worldRelationTypeRows;
+  const activeRelationPreviewRows = isBookScope ? bookRelationPreviewRows : worldRelationPreviewRows;
+  const activeRelationGraphEdges = isBookScope ? bookRelationGraphEdges : worldRelationGraphEdges;
 
-            {activeRelationTypeRows.length > 0 ? (
-              <div className="overview-list">
-                {activeRelationTypeRows.map((row) => (
-                  <div key={row.type} className="overview-list-item">
-                    <span>{row.label}</span>
-                    <span className="overview-list-value">{row.count}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {activeRelationPreviewRows.length > 0 ? (
-              <div className="overview-list">
-                {activeRelationPreviewRows.map((relation) => (
-                  <div key={relation.id} className="relation-edge-item">
-                    <div className="relation-edge-main">
-                      <span className="relation-edge-text">{relation.fromName}</span>
-                      <span className="tag tag-primary">{relation.typeLabel}</span>
-                      <span className="relation-edge-text">{relation.toName}</span>
-                    </div>
-                    {relation.note ? <span className="relation-edge-note">{relation.note}</span> : null}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <EmptyStateCard
-            compact
-            icon="图"
-            title="还没有关系"
-            description="先在设定编辑里添加关系。"
-          />
-        )}
+  return (
+    <div className="overview-block overview-block-emphasis">
+      {renderOverviewTitle({
+        icon: '图',
+        title: '关系图谱',
+        meta: `${isBookScope ? '作品视角' : '世界视角'} · ${activeRelationCount} 条关系`
+      })}
+      <div className="relation-scope-switch">
+        <button
+          type="button"
+          className={`scope-switch-btn ${!isBookScope ? 'scope-switch-btn-active' : ''}`}
+          onClick={() => onRelationScopeChange?.('world')}
+        >
+          世界视角
+        </button>
+        <button
+          type="button"
+          className={`scope-switch-btn ${isBookScope ? 'scope-switch-btn-active' : ''}`}
+          onClick={() => onRelationScopeChange?.('book')}
+          disabled={!canSwitchBookGraph}
+          title={!canSwitchBookGraph ? '当前世界还没有作品，暂时不能切到作品视角' : ''}
+        >
+          作品视角
+        </button>
       </div>
+      {isBookScope && canSwitchBookGraph ? (
+        <div className="relation-book-picker">
+          <label className="field-label">查看作品</label>
+          <select
+            className="field-input"
+            value={overviewBookGraphId}
+            onChange={(event) => onOverviewBookGraphChange?.(event.target.value)}
+          >
+            {booksInWorld.map((book) => (
+              <option key={book.id} value={book.id}>
+                {book.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {activeRelationCount > 0 ? (
+        <div className="overview-list relation-overview-stack">
+          <RelationGraphPreviewCard edges={activeRelationGraphEdges} relationCount={activeRelationCount} />
 
-      <div className="overview-block">
-        <div className="overview-block-header">
-          {renderOverviewTitle({ icon: '动', title: '最近动态', meta: '这里只看最近变化，完整记录见时间轴' })}
-          {onGoToTimelineTab ? (
-            <button type="button" className="btn-inline btn-inline-secondary overview-block-action" onClick={onGoToTimelineTab}>
-              打开时间轴
-            </button>
+          {activeRelationTypeRows.length > 0 ? (
+            <div className="overview-list">
+              {activeRelationTypeRows.map((row) => (
+                <div key={row.type} className="overview-list-item">
+                  <span>{row.label}</span>
+                  <span className="overview-list-value">{row.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {activeRelationPreviewRows.length > 0 ? (
+            <div className="overview-list">
+              {activeRelationPreviewRows.map((relation) => (
+                <div key={relation.id} className="relation-edge-item">
+                  <div className="relation-edge-main">
+                    <span className="relation-edge-text">{relation.fromName}</span>
+                    <span className="tag tag-primary">{relation.typeLabel}</span>
+                    <span className="relation-edge-text">{relation.toName}</span>
+                  </div>
+                  {relation.note ? <span className="relation-edge-note">{relation.note}</span> : null}
+                </div>
+              ))}
+            </div>
           ) : null}
         </div>
-        {recentActivityRows.length > 0 ? (
-          <div className="timeline-list">
-            {recentActivityRows.map((item) => (
-              <div key={item.id} className="timeline-item">
-                <div className="timeline-item-main">
-                  <span className={`tag ${item.type === '设定' ? 'tag-primary' : 'tag-secondary'}`}>
-                    {item.subtype === 'update' ? '更新' : item.subtype === 'capture' ? '捕获' : item.type}
-                  </span>
-                  <span className="timeline-item-label">{item.label}</span>
-                </div>
-                <div className="timeline-item-meta">
-                  <span>{item.note}</span>
-                  <span className="timeline-item-time">{formatCaptureTime(item.timestamp)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyStateCard compact icon="动" title="还没有最近动态" description="设定更新和灵感会出现在这里。" />
-        )}
+      ) : (
+        <EmptyStateCard
+          compact
+          icon="图"
+          title="还没有关系"
+          description="先在设定编辑里添加关系。"
+        />
+      )}
+    </div>
+  );
+}
+
+export function WorldActivityView({ recentEntities, recentCaptures, onGoToTimelineTab }) {
+  const recentActivityRows = [
+    ...recentEntities.map((entity) => ({
+      id: `entity-${entity.id}`,
+      timestamp: Number(entity.updatedAt || entity.createdAt || 0),
+      label: `设定更新 · ${entity.name || '未命名设定'}`,
+      type: '设定',
+      subtype: 'update',
+      note: entity.type || 'other',
+      entityId: entity.id
+    })),
+    ...recentCaptures.map((capture, index) => ({
+      id: `capture-${capture.timestamp || index}-${String(capture.text || '').slice(0, 20)}`,
+      timestamp: Number(capture.timestamp || 0),
+      label: `灵感记录 · ${String(capture.text || '').slice(0, 28)}`,
+      type: '灵感',
+      subtype: 'capture',
+      note: capture.sourceTitle || '未知来源'
+    }))
+  ]
+    .filter((row) => row.timestamp > 0)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 6);
+
+  return (
+    <div className="overview-block">
+      <div className="overview-block-header">
+        {renderOverviewTitle({ icon: '动', title: '最近动态', meta: '这里只看最近变化，完整记录见时间轴' })}
+        {onGoToTimelineTab ? (
+          <button type="button" className="btn-inline btn-inline-secondary overview-block-action" onClick={onGoToTimelineTab}>
+            打开时间轴
+          </button>
+        ) : null}
       </div>
+      {recentActivityRows.length > 0 ? (
+        <div className="timeline-list">
+          {recentActivityRows.map((item) => (
+            <div key={item.id} className="timeline-item">
+              <div className="timeline-item-main">
+                <span className={`tag ${item.type === '设定' ? 'tag-primary' : 'tag-secondary'}`}>
+                  {item.subtype === 'update' ? '更新' : item.subtype === 'capture' ? '捕获' : item.type}
+                </span>
+                <span className="timeline-item-label">{item.label}</span>
+              </div>
+              <div className="timeline-item-meta">
+                <span>{item.note}</span>
+                <span className="timeline-item-time">{formatCaptureTime(item.timestamp)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyStateCard compact icon="动" title="还没有最近动态" description="设定更新和灵感会出现在这里。" />
+      )}
+    </div>
+  );
+}
+
+function WorldSummaryCard({
+  currentWorld,
+  currentBook,
+  distributionRows,
+  recentEntities,
+  recentCaptures,
+  selectedWorldId,
+  worldQuickRows,
+  onQuickJumpWorld,
+  selectedBookId,
+  booksInWorld,
+  relationScope,
+  onRelationScopeChange,
+  overviewBookGraphId,
+  onOverviewBookGraphChange,
+  worldRelationCount,
+  worldRelationTypeRows,
+  worldRelationPreviewRows,
+  worldRelationGraphEdges,
+  bookRelationCount,
+  bookRelationTypeRows,
+  bookRelationPreviewRows,
+  bookRelationGraphEdges,
+  onGoToTimelineTab
+}) {
+  return (
+    <div className="section-body">
+      <div className="summary-grid">
+        <div className="summary-item">
+          <div className="summary-item-label">当前世界</div>
+          <div className="summary-item-value">{currentWorld?.name || '未选择世界'}</div>
+        </div>
+        <div className="summary-item">
+          <div className="summary-item-label">当前作品</div>
+          <div className="summary-item-value">{currentBook?.title || '全部作品'}</div>
+        </div>
+      </div>
+
+      <WorldQuickView
+        worldQuickRows={worldQuickRows}
+        selectedWorldId={selectedWorldId}
+        onQuickJumpWorld={onQuickJumpWorld}
+      />
+
+      <WorldMetricsView
+        distributionRows={distributionRows}
+        recentEntities={recentEntities}
+        recentCaptures={recentCaptures}
+      />
+
+      <WorldRelationView
+        relationScope={relationScope}
+        onRelationScopeChange={onRelationScopeChange}
+        overviewBookGraphId={overviewBookGraphId}
+        onOverviewBookGraphChange={onOverviewBookGraphChange}
+        worldRelationCount={worldRelationCount}
+        worldRelationTypeRows={worldRelationTypeRows}
+        worldRelationPreviewRows={worldRelationPreviewRows}
+        worldRelationGraphEdges={worldRelationGraphEdges}
+        bookRelationCount={bookRelationCount}
+        bookRelationTypeRows={bookRelationTypeRows}
+        bookRelationPreviewRows={bookRelationPreviewRows}
+        bookRelationGraphEdges={bookRelationGraphEdges}
+        selectedBookId={selectedBookId}
+        booksInWorld={booksInWorld}
+      />
+
+      <WorldActivityView
+        recentEntities={recentEntities}
+        recentCaptures={recentCaptures}
+        onGoToTimelineTab={onGoToTimelineTab}
+      />
     </div>
   );
 }
