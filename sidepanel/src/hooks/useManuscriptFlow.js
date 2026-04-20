@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { formatAiProvider } from '../utils/aiUtils';
-import { formatRuntimeError, sendRuntimeMessage } from '../services/runtimeApi';
+import { entityService } from '../services/entity.service';
+import { aiService } from '../services/ai.service.ts';
 
 export function useManuscriptFlow({
   selectedWorldId,
   selectedBookId,
   setActiveTab,
   setEditingEntity,
+  onDataChanged,
   onUiMessage
 }) {
   const [manuscriptText, setManuscriptText] = useState('');
@@ -17,7 +19,7 @@ export function useManuscriptFlow({
 
   const handleParseManuscript = async () => {
     if (!selectedWorldId) {
-      onUiMessage?.('请先选择世界观库后再解析书稿', 'warning');
+      onUiMessage?.('请先选择世界，再解析书稿', 'warning');
       return;
     }
     const sourceText = String(manuscriptText || '').trim();
@@ -28,41 +30,53 @@ export function useManuscriptFlow({
     if (isParsingManuscript) return;
 
     setIsParsingManuscript(true);
-    const result = await sendRuntimeMessage('PARSE_MANUSCRIPT', {
-      worldId: selectedWorldId,
-      bookId: selectedBookId,
-      text: sourceText
-    });
-    setIsParsingManuscript(false);
+    try {
+      const result = await aiService.parseManuscript({
+        worldId: selectedWorldId,
+        bookId: selectedBookId || undefined,
+        text: sourceText
+      });
 
-    if (!result?.success) {
-      onUiMessage?.(formatRuntimeError(result, '书稿解析失败'), 'error');
-      return;
-    }
+      if (!result?.success || !result?.data) {
+        onUiMessage?.('解析失败，请稍后重试', 'error');
+        return;
+      }
 
-    const suggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
-    const relationSuggestions = Array.isArray(result.relationSuggestions) ? result.relationSuggestions : [];
-    setManuscriptSuggestions(suggestions);
-    setManuscriptRelationSuggestions(relationSuggestions);
-    const provider = result.provider || 'local-heuristic';
-    const model = result.model || '';
-    setManuscriptParseMeta({
-      provider,
-      model,
-      fallbackReason: result.fallbackReason || '',
-      fallbackType: result.fallbackType || '',
-      fallbackStatus: result.fallbackStatus,
-      fallbackRetriable: Boolean(result.fallbackRetriable),
-      fallbackTraceId: result.fallbackTraceId || '',
-      updatedAt: Date.now()
-    });
-    onUiMessage?.(
-      `解析完成，提取到 ${suggestions.length} 个候选设定，推断 ${relationSuggestions.length} 条关系（${formatAiProvider(
+      const payload = result.data || {};
+      const suggestions = Array.isArray(payload.suggestions)
+        ? payload.suggestions
+        : Array.isArray(payload.entities)
+          ? payload.entities
+          : [];
+      const relationSuggestions = Array.isArray(payload.relationSuggestions) ? payload.relationSuggestions : [];
+      setManuscriptSuggestions(suggestions);
+      setManuscriptRelationSuggestions(relationSuggestions);
+      const provider = payload.provider || 'local-heuristic';
+      const model = payload.model || '';
+      setManuscriptParseMeta({
         provider,
-        model
-      )}）`,
-      'success'
-    );
+        model,
+        fallbackReason: payload.fallbackReason || '',
+        fallbackType: payload.fallbackType || '',
+        fallbackStatus: payload.fallbackStatus,
+        fallbackRetriable: Boolean(payload.fallbackRetriable),
+        fallbackTraceId: payload.fallbackTraceId || '',
+        strategyVersion: payload.strategyVersion || '',
+        updatedAt: Date.now()
+      });
+      onUiMessage?.(
+        `解析完成：${suggestions.length} 个设定，${relationSuggestions.length} 条关系（${formatAiProvider(
+          provider,
+          model
+        )}）`,
+        'success'
+      );
+    } catch (error) {
+      console.error('[Sidepanel] parse manuscript error:', error);
+      onUiMessage?.(error?.message || '解析失败，请稍后重试', 'error');
+    } finally {
+      setIsParsingManuscript(false);
+    }
   };
 
   const handleClearManuscriptSuggestions = () => {
@@ -89,27 +103,100 @@ export function useManuscriptFlow({
       sourceTitle: selectedBookId ? '书稿解析（当前作品）' : '书稿解析',
       usedInCurrentBook: Boolean(selectedBookId)
     });
-    onUiMessage?.(`已将「${suggestion.name || '候选设定'}」填充到设定编辑器`, 'success');
+    onUiMessage?.(`已写入编辑器：${suggestion.name || '候选设定'}`, 'success');
   };
 
   const handleBatchApplyRelations = async () => {
     if (!selectedWorldId || manuscriptRelationSuggestions.length === 0) {
-      onUiMessage?.('没有可批量应用的关系推断结果', 'warning');
+      onUiMessage?.('没有可写入的关系', 'warning');
       return;
     }
-    
-    const result = await sendRuntimeMessage('BATCH_APPLY_MANUSCRIPT_RELATIONS', {
-      worldId: selectedWorldId,
-      bookId: selectedBookId,
-      relations: manuscriptRelationSuggestions
-    });
-    
-    if (!result?.success) {
-      onUiMessage?.(formatRuntimeError(result, '批量应用关系失败'), 'error');
-      return;
+
+    try {
+      const [entitiesResult, relationsResult] = await Promise.all([
+        entityService.getEntities(selectedWorldId),
+        entityService.getRelations(selectedWorldId)
+      ]);
+
+      if (!entitiesResult?.success || !Array.isArray(entitiesResult.data)) {
+        onUiMessage?.('加载世界设定失败，无法写入关系', 'error');
+        return;
+      }
+
+      const entities = entitiesResult.data;
+      const existingRelations = relationsResult?.success && Array.isArray(relationsResult.data) ? relationsResult.data : [];
+
+      const nameToEntityId = new Map();
+      entities.forEach((entity) => {
+        const name = String(entity?.name || '').trim();
+        const id = String(entity?.id || '').trim();
+        if (!name || !id) return;
+        nameToEntityId.set(name, id);
+      });
+
+      const byFromEntityId = new Map();
+      existingRelations.forEach((relation) => {
+        const fromEntityId = String(relation?.fromEntityId || '').trim();
+        if (!fromEntityId) return;
+        if (!byFromEntityId.has(fromEntityId)) {
+          byFromEntityId.set(fromEntityId, []);
+        }
+        byFromEntityId.get(fromEntityId).push({
+          toEntityId: relation.toEntityId,
+          type: relation.type || 'related_to',
+          note: relation.note || ''
+        });
+      });
+
+      let matchedCount = 0;
+      manuscriptRelationSuggestions.forEach((suggestion) => {
+        const fromName = String(
+          suggestion?.fromName || suggestion?.from || suggestion?.sourceName || suggestion?.source || ''
+        ).trim();
+        const toName = String(
+          suggestion?.toName || suggestion?.to || suggestion?.targetName || suggestion?.target || ''
+        ).trim();
+        const relationType = String(suggestion?.type || suggestion?.relationType || 'related_to').trim() || 'related_to';
+        const note = String(suggestion?.note || suggestion?.evidence || '').trim();
+
+        const fromEntityId = nameToEntityId.get(fromName);
+        const toEntityId = nameToEntityId.get(toName);
+        if (!fromEntityId || !toEntityId || fromEntityId === toEntityId) return;
+
+        matchedCount += 1;
+        if (!byFromEntityId.has(fromEntityId)) {
+          byFromEntityId.set(fromEntityId, []);
+        }
+        byFromEntityId.get(fromEntityId).push({
+          toEntityId,
+          type: relationType,
+          note
+        });
+      });
+
+      if (matchedCount === 0) {
+        onUiMessage?.('没有匹配关系，请先创建相关设定', 'warning');
+        return;
+      }
+
+      for (const [fromEntityId, relations] of byFromEntityId.entries()) {
+        const dedupMap = new Map();
+        relations.forEach((relation) => {
+          const key = `${relation.toEntityId}::${relation.type}::${relation.note || ''}`;
+          dedupMap.set(key, relation);
+        });
+
+        const finalRelations = Array.from(dedupMap.values());
+        const saveResult = await entityService.replaceRelations(fromEntityId, selectedWorldId, finalRelations);
+        if (!saveResult?.success) continue;
+      }
+
+      await onDataChanged?.();
+      onUiMessage?.(`已写入 ${matchedCount} 条关系`, 'success');
+    } catch (error) {
+      console.error('[Sidepanel] handleBatchApplyRelations error:', error);
+      onUiMessage?.('批量写入失败，请稍后重试', 'error');
     }
-    
-    onUiMessage?.(`成功批量应用 ${result.appliedCount || 0} 条关系`, 'success');
   };
 
   return {

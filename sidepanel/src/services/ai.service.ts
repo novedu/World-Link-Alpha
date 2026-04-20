@@ -1,5 +1,18 @@
 import { http } from '../lib/http/client';
 
+interface ContextEntity {
+  id: string;
+  name: string;
+  type: string;
+  summary?: string;
+}
+
+interface ParseManuscriptParams {
+  worldId: string;
+  bookId?: string;
+  text: string;
+}
+
 class AiService {
   async entityAssist(params: {
     text: string;
@@ -8,7 +21,7 @@ class AiService {
       style?: string;
       targetLength?: number;
     };
-    contextEntities?: any[];
+    contextEntities?: ContextEntity[];
   }) {
     return http.post('/ai/entity-assist', params);
   }
@@ -20,7 +33,7 @@ class AiService {
       type: string;
       summary: string;
     };
-    contextEntities?: any[];
+    contextEntities?: ContextEntity[];
     worldContext?: {
       worldId: string;
       worldName: string;
@@ -46,6 +59,10 @@ class AiService {
     style?: string;
   }) {
     return http.post('/ai/generate-image', params);
+  }
+
+  async parseManuscript(params: ParseManuscriptParams) {
+    return http.post('/ai/parse-manuscript', params);
   }
 }
 

@@ -1,14 +1,33 @@
 import { http } from '../lib/http/client';
 
+type EntityFilters = Record<string, string | number | boolean | undefined>;
+
+interface EntityPayload {
+  worldId: string;
+  name: string;
+  type: string;
+  summary?: string;
+  tags?: string[];
+  sourceUrl?: string;
+  sourceTitle?: string;
+}
+
+type EntityUpdatePayload = Partial<Omit<EntityPayload, 'worldId'>>;
+type EntityRelationPayload = {
+  toEntityId: string;
+  type: string;
+  note?: string;
+};
+
 // 实体服务
 class EntityService {
   // 获取世界下的实体列表
-  async getEntities(worldId: string, filters: { [key: string]: any } = {}) {
+  async getEntities(worldId: string, filters: EntityFilters = {}) {
     return http.get('/entities', { worldId, ...filters });
   }
 
   // 创建实体
-  async createEntity(entityData: any) {
+  async createEntity(entityData: EntityPayload) {
     return http.post('/entities', entityData);
   }
 
@@ -18,7 +37,7 @@ class EntityService {
   }
 
   // 更新实体
-  async updateEntity(id: string, updates: any) {
+  async updateEntity(id: string, updates: EntityUpdatePayload) {
     return http.put(`/entities/${id}`, updates);
   }
 
@@ -35,6 +54,17 @@ class EntityService {
   // 解绑实体从书项目
   async unbindEntityFromBook(entityId: string, bookId: string) {
     return http.post(`/entities/${entityId}/unbind`, { bookId });
+  }
+
+  async getRelations(worldId: string) {
+    return http.get('/entities/relations', { worldId });
+  }
+
+  async replaceRelations(entityId: string, worldId: string, relations: EntityRelationPayload[]) {
+    return http.put(`/entities/${entityId}/relations`, {
+      worldId,
+      relations
+    });
   }
 }
 

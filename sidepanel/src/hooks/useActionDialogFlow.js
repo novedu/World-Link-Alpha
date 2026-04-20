@@ -1,18 +1,19 @@
 import { useState } from 'react';
-import { formatRuntimeError, sendRuntimeMessage } from '../services/runtimeApi';
+import { worldService } from '../services/world.service.ts';
+import { bookService } from '../services/book.service.ts';
+import { authService } from '../services/auth.service.ts';
 
 export function useActionDialogFlow({
   selectedWorldId,
   setSelectedWorldId,
   setSelectedBookId,
-  authSession,
   setAuthSession,
   ensureCloudRuntimeReady,
   refreshRuntimeContext,
+  onDataChanged,
   onUiMessage
 }) {
   const [dialogSubmitting, setDialogSubmitting] = useState(false);
-  const [isMigratingLocalData, setIsMigratingLocalData] = useState(false);
   const [actionDialog, setActionDialog] = useState({
     open: false,
     type: '',
@@ -67,14 +68,15 @@ export function useActionDialogFlow({
           setDialogSubmitting(false);
           return;
         }
-        const result = await sendRuntimeMessage('CREATE_WORLD', { name });
-        if (!result?.success) {
-          onUiMessage?.(formatRuntimeError(result, '创建世界失败'), 'error');
+        const result = await worldService.createWorld(name, '');
+        if (!result?.success || !result?.data) {
+          onUiMessage?.('创建世界失败，请稍后重试', 'error');
           setDialogSubmitting(false);
           return;
         }
-        setSelectedWorldId(result.world.id);
+        setSelectedWorldId(result.data.id);
         setSelectedBookId('');
+        await onDataChanged?.();
         onUiMessage?.('世界创建成功', 'success');
         closeActionDialog();
         return;
@@ -92,16 +94,14 @@ export function useActionDialogFlow({
           setDialogSubmitting(false);
           return;
         }
-        const result = await sendRuntimeMessage('CREATE_BOOK', {
-          worldId: selectedWorldId,
-          title
-        });
-        if (!result?.success) {
-          onUiMessage?.(formatRuntimeError(result, '创建书项目失败'), 'error');
+        const result = await bookService.createBook(selectedWorldId, title, '');
+        if (!result?.success || !result?.data) {
+          onUiMessage?.('创建书项目失败，请稍后重试', 'error');
           setDialogSubmitting(false);
           return;
         }
-        setSelectedBookId(result.book.id);
+        setSelectedBookId(result.data.id);
+        await onDataChanged?.();
         onUiMessage?.('书项目创建成功', 'success');
         closeActionDialog();
         return;
@@ -115,17 +115,22 @@ export function useActionDialogFlow({
           setDialogSubmitting(false);
           return;
         }
-        const result = await sendRuntimeMessage('SIGN_IN_WITH_PASSWORD', {
-          email,
-          password
-        });
-        if (!result?.success) {
-          onUiMessage?.(formatRuntimeError(result, '云端登录失败'), 'error');
+        const loginResult = await authService.login(email, password);
+        if (!loginResult?.success) {
+          onUiMessage?.('登录失败，请检查账号信息', 'error');
           setDialogSubmitting(false);
           return;
         }
-        setAuthSession(result.session || null);
+        const profileResult = await authService.getCurrentUser();
+        if (profileResult?.success && profileResult?.data) {
+          setAuthSession({
+            userId: profileResult.data.id,
+            email: profileResult.data.email,
+            plan: profileResult.data.plan || 'free'
+          });
+        }
         await refreshRuntimeContext();
+        await onDataChanged?.();
         onUiMessage?.('云端登录成功', 'success');
         closeActionDialog();
         return;
@@ -145,42 +150,23 @@ export function useActionDialogFlow({
           setDialogSubmitting(false);
           return;
         }
-        const result = await sendRuntimeMessage('REGISTER_WITH_PASSWORD', {
-          email,
-          password
-        });
-        if (!result?.success) {
-          onUiMessage?.(formatRuntimeError(result, '注册失败'), 'error');
+        const registerResult = await authService.register(email, password);
+        if (!registerResult?.success) {
+          onUiMessage?.('注册失败，请稍后重试', 'error');
           setDialogSubmitting(false);
           return;
         }
-        setAuthSession(result.session || null);
+        const profileResult = await authService.getCurrentUser();
+        if (profileResult?.success && profileResult?.data) {
+          setAuthSession({
+            userId: profileResult.data.id,
+            email: profileResult.data.email,
+            plan: profileResult.data.plan || 'free'
+          });
+        }
         await refreshRuntimeContext();
+        await onDataChanged?.();
         onUiMessage?.('注册成功', 'success');
-        closeActionDialog();
-        return;
-      }
-
-      if (actionDialog.type === 'migrate_local_to_cloud') {
-        setIsMigratingLocalData(true);
-        const result = await sendRuntimeMessage('MIGRATE_LOCAL_TO_CLOUD', {
-          strategy: 'merge',
-          clearLocalAfterImport: false
-        });
-        setIsMigratingLocalData(false);
-        if (!result?.success) {
-          onUiMessage?.(formatRuntimeError(result, '迁移失败'), 'error');
-          setDialogSubmitting(false);
-          return;
-        }
-        const migrated = result.migrated || {};
-        onUiMessage?.(
-          `迁移完成：世界 ${migrated.worlds || 0}，书 ${migrated.books || 0}，实体 ${migrated.entities || 0}，捕获 ${
-            migrated.captures || 0
-          }`,
-          'success'
-        );
-        await refreshRuntimeContext();
         closeActionDialog();
         return;
       }
@@ -197,7 +183,7 @@ export function useActionDialogFlow({
     openActionDialog({
       type: 'create_world',
       title: '新建世界',
-      message: '创建一个新的世界容器，用于承载书项目与实体。',
+      message: '创建一个世界，用来整理作品和设定。',
       fields: [
         {
           key: 'name',
@@ -217,7 +203,7 @@ export function useActionDialogFlow({
     openActionDialog({
       type: 'create_book',
       title: '新建书项目',
-      message: '书项目用于组织当前世界下的创作视图。',
+      message: '书项目用来整理当前世界下的内容。',
       fields: [
         {
           key: 'title',
@@ -235,7 +221,7 @@ export function useActionDialogFlow({
     openActionDialog({
       type: 'login_cloud',
       title: '登录账号',
-      message: '登录后自动开启云端同步，可跨设备访问你的世界资产。',
+      message: '登录后可开启云同步。',
       fields: [
         {
           key: 'email',
@@ -259,7 +245,7 @@ export function useActionDialogFlow({
     openActionDialog({
       type: 'register_cloud',
       title: '注册账号',
-      message: '注册账号后可开启云端同步，跨设备访问你的世界资产。',
+      message: '注册后可开启云同步。',
       fields: [
         {
           key: 'email',
@@ -283,37 +269,16 @@ export function useActionDialogFlow({
     });
   };
 
-  const handleMigrateLocalToCloud = async () => {
-    if (isMigratingLocalData) return;
-    if (!authSession?.email) {
-      onUiMessage?.('请先登录账号，再执行数据迁移', 'warning');
-      return;
-    }
-    const ready = await ensureCloudRuntimeReady();
-    if (!ready) return;
-    openActionDialog({
-      type: 'migrate_local_to_cloud',
-      title: '迁移本机数据到云端',
-      message:
-        '将把当前本机世界/书/实体/捕获数据合并迁移到云端。此操作不会清空本机数据，可重复执行。',
-      fields: [],
-      confirmText: '开始迁移',
-      cancelText: '取消'
-    });
-  };
-
   return {
     actionDialog,
     actionDialogValues,
     dialogSubmitting,
-    isMigratingLocalData,
     closeActionDialog,
     updateDialogField,
     handleSubmitActionDialog,
     handleAddWorld,
     handleAddBook,
     handleSignIn,
-    handleRegister,
-    handleMigrateLocalToCloud
+    handleRegister
   };
 }

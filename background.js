@@ -1,19 +1,58 @@
 // Background Service Worker - 模块化入口
 // 按消息域分 handler，保持入口清晰
 
-DataRepository = require('./background/repositories/dataRepository');
-AuthHandler = require('./background/handlers/authHandler');
-EntityHandler = require('./background/handlers/entityHandler');
-WorldBookHandler = require('./background/handlers/worldBookHandler');
-RuntimeHandler = require('./background/handlers/runtimeHandler');
-CaptureHandler = require('./background/handlers/captureHandler');
-AiHandler = require('./background/handlers/aiHandler');
-ExportHandler = require('./background/handlers/exportHandler');
-EntitlementHandler = require('./background/handlers/entitlementHandler');
-MigrateHandler = require('./background/handlers/migrateHandler');
+const __cjsCache = new Map();
+
+function resolveModulePath(request, parentPath) {
+  const input = String(request || '').trim();
+  if (!input) {
+    throw new Error('require path is empty');
+  }
+  const withExt = input.endsWith('.js') ? input : `${input}.js`;
+  if (withExt.startsWith('./') || withExt.startsWith('../')) {
+    const baseUrl = new URL(parentPath, 'https://world-link.local/');
+    return new URL(withExt, baseUrl).pathname.replace(/^\/+/, '');
+  }
+  return withExt.replace(/^\/+/, '');
+}
+
+function require(request, parentPath = 'background.js') {
+  const modulePath = resolveModulePath(request, parentPath);
+  if (__cjsCache.has(modulePath)) {
+    return __cjsCache.get(modulePath).exports;
+  }
+
+  const module = { exports: {} };
+  __cjsCache.set(modulePath, module);
+
+  const prevModule = globalThis.module;
+  const prevExports = globalThis.exports;
+  const prevRequire = globalThis.require;
+
+  globalThis.module = module;
+  globalThis.exports = module.exports;
+  globalThis.require = (nextRequest) => require(nextRequest, modulePath);
+
+  try {
+    importScripts(chrome.runtime.getURL(modulePath));
+    return module.exports;
+  } finally {
+    globalThis.module = prevModule;
+    globalThis.exports = prevExports;
+    globalThis.require = prevRequire;
+  }
+}
+
+const DataRepository = require('./background/repositories/dataRepository');
+const AuthHandler = require('./background/handlers/authHandler');
+const EntityHandler = require('./background/handlers/entityHandler');
+const WorldBookHandler = require('./background/handlers/worldBookHandler');
+const RuntimeHandler = require('./background/handlers/runtimeHandler');
+const CaptureHandler = require('./background/handlers/captureHandler');
+const ExportHandler = require('./background/handlers/exportHandler');
+const EntitlementHandler = require('./background/handlers/entitlementHandler');
 
 const { safeName } = require('./background/utils/helpers');
-const { createId } = require('./background/utils/helpers');
 
 const dataRepository = new DataRepository();
 
@@ -22,10 +61,8 @@ const entityHandler = new EntityHandler(dataRepository);
 const worldBookHandler = new WorldBookHandler(dataRepository);
 const runtimeHandler = new RuntimeHandler(dataRepository);
 const captureHandler = new CaptureHandler(dataRepository);
-const aiHandler = new AiHandler(dataRepository);
 const exportHandler = new ExportHandler(dataRepository);
 const entitlementHandler = new EntitlementHandler(dataRepository);
-const migrateHandler = new MigrateHandler(dataRepository);
 
 const runtimeReadyPromise = dataRepository.getRuntimeConfig().then((config) => {
   dataRepository.mode = config.repositoryMode;
@@ -38,26 +75,6 @@ async function ensureRuntimeReady() {
   return runtimeReadyPromise;
 }
 
-async function migrateLocalDataIfNeeded() {
-  try {
-    const config = await dataRepository.getRuntimeConfig();
-    if (config.repositoryMode !== 'cloud') return;
-
-    const { mergeStoreShape } = require('./background/utils/helpers');
-    const localData = await dataRepository.readData();
-
-    if (localData.worlds.length === 0 && localData.books.length === 0 && localData.entities.length === 0) {
-      return;
-    }
-
-    const apiData = await migrateHandler.getCloudDataFromApi();
-    const merged = mergeStoreShape(localData, apiData);
-    await dataRepository.writeData(merged);
-  } catch (error) {
-    console.warn('[Background] migrateLocalDataIfNeeded skipped:', error?.message || error);
-  }
-}
-
 async function getEffectiveEntitlements() {
   const EntitlementService = require('./background/services/entitlementService');
   const entitlementService = new EntitlementService(dataRepository);
@@ -66,10 +83,6 @@ async function getEffectiveEntitlements() {
 
 async function bootstrapAfterReady() {
   await ensureRuntimeReady();
-  if (dataRepository.mode === 'local') {
-    await dataRepository.ensureSeedData();
-    await migrateLocalDataIfNeeded();
-  }
   await getEffectiveEntitlements().catch((error) => {
     console.warn('[Background] getEffectiveEntitlements skipped:', error?.message || error);
   });
@@ -120,6 +133,18 @@ function sendMessageToTab(tabId, message) {
   });
 }
 
+function broadcastRuntimeMessage(message) {
+  try {
+    chrome.runtime.sendMessage(message, () => {
+      if (chrome.runtime.lastError) {
+        // 忽略无接收方场景（例如当前无 sidepanel 打开）
+      }
+    });
+  } catch {
+    // ignore
+  }
+}
+
 function shouldRetryAfterInject(error) {
   const message = safeName(error?.message);
   return (
@@ -164,26 +189,46 @@ async function getWorldsAndBooks() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+function ensureCaptureContextMenu() {
   try {
-    chrome.contextMenus.create({
-      id: 'captureText',
-      title: '存入 World-Link',
-      contexts: ['selection']
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create(
+        {
+          id: 'captureText',
+          title: '存入 World-Link',
+          contexts: ['selection']
+        },
+        () => {
+          if (chrome.runtime.lastError) {
+            console.warn('[Background] contextMenus create failed:', chrome.runtime.lastError.message);
+          }
+        }
+      );
     });
   } catch (error) {
-    console.log('[Background] contextMenus create skipped:', error?.message || error);
+    console.warn('[Background] ensureCaptureContextMenu failed:', error?.message || error);
   }
+}
 
+function ensureSidePanelBehavior() {
   try {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   } catch (error) {
     console.log('[Background] setPanelBehavior skipped:', error?.message || error);
   }
+}
+
+function bootstrapRuntime() {
+  ensureCaptureContextMenu();
+  ensureSidePanelBehavior();
 
   bootstrapAfterReady().catch((error) => {
     console.error('[Background] bootstrapAfterReady error:', error);
   });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  bootstrapRuntime();
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -227,7 +272,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(validationError);
       return true;
     }
-    withResponse(() => entityHandler.handleSaveEntity(message.data), sendResponse);
+    withResponse(async () => {
+      const result = await entityHandler.handleSaveEntity(message.data);
+      if (result?.success) {
+        broadcastRuntimeMessage({
+          type: 'DATA_UPDATED',
+          data: {
+            source: 'content_capture',
+            timestamp: Date.now()
+          }
+        });
+      }
+      return result;
+    }, sendResponse);
     return true;
   }
 
@@ -238,16 +295,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (type === 'CREATE_BOOK') {
     withResponse(() => worldBookHandler.handleCreateBook(message?.data), sendResponse);
-    return true;
-  }
-
-  if (type === 'SAVE_ENTITY_FROM_SIDEPANEL') {
-    const validationError = entityHandler.validateSaveEntityFromSidepanelPayload(message?.data);
-    if (validationError) {
-      sendResponse(validationError);
-      return true;
-    }
-    withResponse(() => entityHandler.handleSaveEntityFromSidepanel(message?.data), sendResponse);
     return true;
   }
 
@@ -268,56 +315,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
     withResponse(() => exportHandler.handleRequestExport(message?.data), sendResponse);
-    return true;
-  }
-
-  if (type === 'AI_ENTITY_ASSIST') {
-    const validationError = aiHandler.validateAiEntityAssistPayload(message?.data);
-    if (validationError) {
-      sendResponse(validationError);
-      return true;
-    }
-    withResponse(() => aiHandler.handleAiEntityAssist(message?.data), sendResponse);
-    return true;
-  }
-
-  if (type === 'REPORT_AI_FEEDBACK') {
-    const validationError = aiHandler.validateReportAiFeedbackPayload(message?.data);
-    if (validationError) {
-      sendResponse(validationError);
-      return true;
-    }
-    withResponse(() => aiHandler.handleReportAiFeedback(message?.data), sendResponse);
-    return true;
-  }
-
-  if (type === 'CHECK_ENTITY_CONFLICT') {
-    const validationError = entityHandler.validateCheckEntityConflictPayload(message?.data);
-    if (validationError) {
-      sendResponse(validationError);
-      return true;
-    }
-    withResponse(() => entityHandler.handleCheckEntityConflict(message?.data), sendResponse);
-    return true;
-  }
-
-  if (type === 'PARSE_MANUSCRIPT') {
-    const validationError = aiHandler.validateParseManuscriptPayload(message?.data);
-    if (validationError) {
-      sendResponse(validationError);
-      return true;
-    }
-    withResponse(() => aiHandler.handleParseManuscript(message?.data), sendResponse);
-    return true;
-  }
-
-  if (type === 'MIGRATE_LOCAL_TO_CLOUD') {
-    const validationError = migrateHandler.validateMigrateLocalToCloudPayload(message?.data);
-    if (validationError) {
-      sendResponse(validationError);
-      return true;
-    }
-    withResponse(() => migrateHandler.handleMigrateLocalToCloud(message?.data), sendResponse);
     return true;
   }
 
@@ -396,12 +393,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onStartup.addListener(() => {
   console.log('[Background] onStartup');
-  bootstrapAfterReady().catch((error) => {
-    console.error('[Background] bootstrapAfterReady error:', error);
-  });
+  bootstrapRuntime();
 });
 
 console.log('[Background] background.js loaded');
+bootstrapRuntime();
 runtimeReadyPromise.then(() => {
   console.log(`[Background] DataRepository mode: ${dataRepository?.mode || 'local'}`);
 });

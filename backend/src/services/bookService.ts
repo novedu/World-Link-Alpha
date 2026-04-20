@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import * as entitlementService from './entitlementService';
 
 export interface CreateBookInput {
   worldId: string;
@@ -62,6 +63,8 @@ export async function createBook(userId: string, input: CreateBookInput) {
   if (!world) {
     throw new Error('世界不存在');
   }
+
+  await entitlementService.ensureBookQuota(userId, input.worldId);
 
   return prisma.book.create({
     data: {

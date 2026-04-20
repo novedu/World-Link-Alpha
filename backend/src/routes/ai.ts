@@ -1,11 +1,53 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { entityAssist, entityConflict, reportAiFeedback, generateImage } from '../services/aiService';
-import { authMiddleware } from '../middleware/auth';
+import { Router, Response, NextFunction } from 'express';
+import { entityAssist, entityConflict, reportAiFeedback, generateImage, parseManuscript } from '../services/aiService';
+import { authMiddleware, type AuthRequest } from '../middleware/auth';
+import { checkFeatureAccess } from '../services/entitlementService';
 
 const router = Router();
 
-router.post('/entity-assist', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+async function ensureAiAccess(req: AuthRequest, res: Response): Promise<boolean> {
+  const userId = String(req.user?.userId || '').trim();
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: {
+        code: 'MISSING_TOKEN',
+        message: '未提供认证令牌',
+        details: {},
+        fieldErrors: {}
+      },
+      meta: {
+        requestId: req.headers['x-request-id'] as string || '',
+        timestamp: new Date().toISOString()
+      }
+    });
+    return false;
+  }
+
+  const allowed = await checkFeatureAccess(userId, 'ai');
+  if (!allowed) {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: 'AI_FEATURE_DISABLED',
+        message: '当前套餐暂不支持 AI 功能，请升级后继续使用',
+        details: {},
+        fieldErrors: {}
+      },
+      meta: {
+        requestId: req.headers['x-request-id'] as string || '',
+        timestamp: new Date().toISOString()
+      }
+    });
+    return false;
+  }
+
+  return true;
+}
+
+router.post('/entity-assist', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!(await ensureAiAccess(req, res))) return;
     const { text, mode, assistProfile, contextEntities } = req.body;
 
     if (!text) {
@@ -18,7 +60,7 @@ router.post('/entity-assist', authMiddleware, async (req: Request, res: Response
           fieldErrors: { text: '文本内容不能为空' }
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
@@ -34,7 +76,7 @@ router.post('/entity-assist', authMiddleware, async (req: Request, res: Response
           fieldErrors: { mode: '模式必须是 summarize 或 expand' }
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
@@ -51,8 +93,9 @@ router.post('/entity-assist', authMiddleware, async (req: Request, res: Response
   }
 });
 
-router.post('/entity-conflict', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/entity-conflict', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!(await ensureAiAccess(req, res))) return;
     const { targetEntity, contextEntities, worldContext } = req.body;
 
     if (!targetEntity?.name) {
@@ -65,7 +108,7 @@ router.post('/entity-conflict', authMiddleware, async (req: Request, res: Respon
           fieldErrors: { targetEntity: '目标实体名称不能为空' }
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
@@ -82,8 +125,9 @@ router.post('/entity-conflict', authMiddleware, async (req: Request, res: Respon
   }
 });
 
-router.post('/report-feedback', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/report-feedback', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!(await ensureAiAccess(req, res))) return;
     const { type, feedback } = req.body;
 
     if (!['assist', 'conflict'].includes(type)) {
@@ -96,7 +140,7 @@ router.post('/report-feedback', authMiddleware, async (req: Request, res: Respon
           fieldErrors: { type: '反馈类型必须是 assist 或 conflict' }
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
@@ -113,8 +157,9 @@ router.post('/report-feedback', authMiddleware, async (req: Request, res: Respon
   }
 });
 
-router.post('/generate-image', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/generate-image', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!(await ensureAiAccess(req, res))) return;
     const { prompt, entityType, style } = req.body;
 
     if (!prompt) {
@@ -127,7 +172,7 @@ router.post('/generate-image', authMiddleware, async (req: Request, res: Respons
           fieldErrors: { prompt: '生成图片的提示词不能为空' }
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
@@ -143,13 +188,61 @@ router.post('/generate-image', authMiddleware, async (req: Request, res: Respons
           fieldErrors: { entityType: '实体类型必须是 character、location 或 item' }
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
     }
 
     const result = await generateImage({ prompt, entityType, style });
+
+    return res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/parse-manuscript', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!(await ensureAiAccess(req, res))) return;
+    const { worldId, bookId, text } = req.body;
+
+    if (!worldId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'worldId 不能为空',
+          details: {},
+          fieldErrors: { worldId: 'worldId 不能为空' }
+        },
+        meta: {
+          requestId: req.headers['x-request-id'] as string || '',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '书稿内容不能为空',
+          details: {},
+          fieldErrors: { text: '书稿内容不能为空' }
+        },
+        meta: {
+          requestId: req.headers['x-request-id'] as string || '',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const result = await parseManuscript({ worldId, bookId, text });
 
     return res.json({
       success: true,

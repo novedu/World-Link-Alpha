@@ -3,6 +3,7 @@ import { body, param, query, validationResult } from 'express-validator';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { getFieldErrors } from '../utils/validation';
 import * as entityService from '../services/entityService';
+import * as entityRelationService from '../services/entityRelationService';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -86,7 +87,7 @@ router.post(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -112,6 +113,45 @@ router.post(
   }
 );
 
+// 获取世界下的关系列表
+router.get(
+  '/relations',
+  authMiddleware,
+  [query('worldId').isUUID().withMessage('无效的世界ID')],
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '请求参数校验失败',
+            details: {},
+            fieldErrors: getFieldErrors(errors.array())
+          },
+          meta: {
+            requestId: req.requestId || '',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      const relations = await entityRelationService.getRelationsByWorld(
+        req.query.worldId as string,
+        req.user!.userId
+      );
+
+      res.json({
+        success: true,
+        data: relations
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // 获取实体详情
 router.get(
   '/:id',
@@ -130,7 +170,7 @@ router.get(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -146,7 +186,7 @@ router.get(
             details: {},
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString(),
           },
         });
@@ -186,7 +226,7 @@ router.put(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -229,7 +269,7 @@ router.delete(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -239,6 +279,54 @@ router.delete(
       res.json({
         success: true,
         data: null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// 覆盖实体对外关系（fromEntity）
+router.put(
+  '/:id/relations',
+  authMiddleware,
+  [
+    param('id').isUUID().withMessage('无效的实体ID'),
+    body('worldId').isUUID().withMessage('无效的世界ID'),
+    body('relations').isArray().withMessage('relations 必须是数组'),
+    body('relations.*.toEntityId').isUUID().withMessage('无效的目标实体ID'),
+    body('relations.*.type').trim().notEmpty().withMessage('关系类型不能为空'),
+    body('relations.*.note').optional().isString().withMessage('关系备注必须是字符串')
+  ],
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '请求参数校验失败',
+            details: {},
+            fieldErrors: getFieldErrors(errors.array())
+          },
+          meta: {
+            requestId: req.requestId || '',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      const relations = await entityRelationService.replaceEntityRelations({
+        userId: req.user!.userId,
+        worldId: req.body.worldId,
+        fromEntityId: req.params.id,
+        relations: req.body.relations
+      });
+
+      res.json({
+        success: true,
+        data: relations
       });
     } catch (error) {
       next(error);
@@ -267,7 +355,7 @@ router.post(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });
@@ -310,7 +398,7 @@ router.post(
             fieldErrors: getFieldErrors(errors.array())
           },
           meta: {
-            requestId: req.headers['x-request-id'] as string || '',
+            requestId: req.requestId || '',
             timestamp: new Date().toISOString()
           }
         });

@@ -48,23 +48,10 @@ const USAGE_ACTION = {
 };
 
 const DEFAULT_RUNTIME_CONFIG = {
-  repositoryMode: 'local',
+  repositoryMode: 'cloud',
   cloudApiBaseUrl: '',
   cloudTimeoutMs: 12000
 };
-
-const CLOUD_API_ENDPOINTS = {
-  STORE: '/v1/store',
-  STORE_IMPORT: '/v1/store/import',
-  ENTITLEMENTS: '/v1/entitlements',
-  AUTH_LOGIN: '/v1/auth/login',
-  AUTH_REFRESH: '/v1/auth/refresh',
-  AI_ENTITY_ASSIST: '/v1/ai/entity-assist',
-  AI_ENTITY_CONFLICT: '/v1/ai/entity-conflict',
-  AI_MANUSCRIPT_PARSE: '/v1/ai/manuscript-parse',
-  AI_FEEDBACK: '/v1/ai/feedback'
-};
-const MOCK_CLOUD_SCHEME = 'mock://';
 
 module.exports = {
   API_BASE_URL,
@@ -84,7 +71,5 @@ module.exports = {
   CONFLICT_CALIBRATION,
   AI_ASSIST_STRATEGY_VERSION,
   USAGE_ACTION,
-  DEFAULT_RUNTIME_CONFIG,
-  CLOUD_API_ENDPOINTS,
-  MOCK_CLOUD_SCHEME
+  DEFAULT_RUNTIME_CONFIG
 };

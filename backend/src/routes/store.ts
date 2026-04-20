@@ -31,13 +31,6 @@ interface PatchResults {
   };
 }
 
-interface StoreData {
-  worlds?: Array<Partial<World>>;
-  books?: Array<Partial<Book>>;
-  entities?: Array<Partial<Entity>>;
-  capturedList?: Array<Partial<Capture>>;
-}
-
 const router = Router();
 
 // 统一存储接口 - 支持世界、书籍、实体、捕获记录的读写
@@ -223,7 +216,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response, next: Ne
 // 批量导入接口 - 用于本地数据迁移到云端
 router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { strategy = 'merge', store } = req.body;
+    const { store } = req.body;
 
     if (!store || typeof store !== 'object') {
       return res.status(400).json({
@@ -235,7 +228,7 @@ router.post('/import', authMiddleware, async (req: AuthRequest, res: Response, n
           fieldErrors: {}
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });
@@ -365,7 +358,7 @@ router.patch('/', authMiddleware, async (req: AuthRequest, res: Response, next: 
           fieldErrors: {}
         },
         meta: {
-          requestId: req.headers['x-request-id'] as string || '',
+          requestId: req.requestId || '',
           timestamp: new Date().toISOString()
         }
       });

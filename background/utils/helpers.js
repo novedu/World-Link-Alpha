@@ -33,10 +33,6 @@ function cloneData(value) {
   }
 }
 
-function isMockCloudBaseUrl(baseUrl) {
-  return safeName(baseUrl).toLowerCase().startsWith(MOCK_CLOUD_SCHEME);
-}
-
 function mergeUniqueByKey(existing, incoming, keyResolver) {
   const output = [];
   const seen = new Set();
@@ -159,12 +155,12 @@ function applyCaptureStatus(item, status, now) {
 
 function normalizeRuntimeConfig(input) {
   const DEFAULT_RUNTIME_CONFIG = {
-    repositoryMode: 'local',
+    repositoryMode: 'cloud',
     cloudApiBaseUrl: '',
     cloudTimeoutMs: 12000
   };
   const rawMode = safeName(input?.repositoryMode).toLowerCase();
-  const mode = rawMode === 'cloud' ? 'cloud' : 'local';
+  const mode = rawMode === 'local' ? 'local' : 'cloud';
   const baseUrl = safeName(input?.cloudApiBaseUrl).replace(/\/+$/g, '');
   const timeoutRaw = Number(input?.cloudTimeoutMs ?? DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs);
   const cloudTimeoutMs = Number.isFinite(timeoutRaw)
@@ -321,7 +317,6 @@ module.exports = {
   normalizeTags,
   normalizeStoreShape,
   cloneData,
-  isMockCloudBaseUrl,
   mergeUniqueByKey,
   mergeStoreShape,
   resolveCaptureStatus,

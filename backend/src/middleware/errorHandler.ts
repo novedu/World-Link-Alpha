@@ -3,6 +3,8 @@ import { Request, Response, NextFunction } from 'express';
 export interface ApiError extends Error {
   statusCode?: number;
   code?: string;
+  details?: Record<string, unknown>;
+  fieldErrors?: Record<string, string>;
 }
 
 export function errorHandler(
@@ -21,8 +23,8 @@ export function errorHandler(
     error: {
       code: err.code || 'INTERNAL_ERROR',
       message: message,
-      details: {},
-      fieldErrors: {}
+      details: err.details || {},
+      fieldErrors: err.fieldErrors || {}
     },
     meta: {
       requestId: req.requestId || '',

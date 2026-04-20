@@ -1,12 +1,12 @@
 /* global chrome */
 
 const DEFAULT_RUNTIME_CONFIG = {
-  repositoryMode: 'local',
+  repositoryMode: 'cloud',
   cloudApiBaseUrl: '',
   cloudTimeoutMs: 12000
 };
 
-function normalizeRepositoryMode(value, fallbackMode = 'local') {
+function normalizeRepositoryMode(value, fallbackMode = 'cloud') {
   const mode = String(value || '').trim().toLowerCase();
   if (mode === 'cloud' || mode === 'local') return mode;
   const fallback = String(fallbackMode || '').trim().toLowerCase();
@@ -25,8 +25,8 @@ export function createDefaultRuntimeConfig() {
 
 export function createDefaultRuntimeContext() {
   return {
-    repositoryMode: 'local',
-    cloudEnabled: false,
+    repositoryMode: 'cloud',
+    cloudEnabled: true,
     authEnabled: true,
     runtimeConfig: createDefaultRuntimeConfig(),
     entitlements: null,
@@ -54,7 +54,7 @@ export function formatRuntimeError(result, fallback = '操作失败，请稍后�
   return `${message}（trace: ${traceId}）`;
 }
 
-export function normalizeRuntimeConfig(rawConfig, fallbackRepositoryMode = 'local') {
+export function normalizeRuntimeConfig(rawConfig, fallbackRepositoryMode = 'cloud') {
   const repositoryMode = normalizeRepositoryMode(rawConfig?.repositoryMode, fallbackRepositoryMode);
   return {
     repositoryMode,
@@ -66,7 +66,7 @@ export function normalizeRuntimeConfig(rawConfig, fallbackRepositoryMode = 'loca
 }
 
 export function normalizeRuntimeContext(result) {
-  const repositoryMode = normalizeRepositoryMode(result?.repositoryMode || result?.runtimeConfig?.repositoryMode, 'local');
+  const repositoryMode = normalizeRepositoryMode(result?.repositoryMode || result?.runtimeConfig?.repositoryMode, 'cloud');
   const runtimeConfig = normalizeRuntimeConfig(result?.runtimeConfig, repositoryMode);
   return {
     repositoryMode,

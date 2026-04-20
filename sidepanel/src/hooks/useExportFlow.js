@@ -1,10 +1,10 @@
-import { formatRuntimeError, sendRuntimeMessage } from '../services/runtimeApi';
 import {
   buildExportFilename,
   buildJsonExportPayload,
   buildMarkdownExport,
   downloadTextFile
 } from '../services/exportService';
+import { entitlementService } from '../services/entitlement.service.ts';
 
 export function useExportFlow({
   selectedWorldId,
@@ -17,7 +17,6 @@ export function useExportFlow({
   entitiesForView,
   entityRelations,
   runtimeContext,
-  setRuntimeContext,
   refreshRuntimeContext,
   typeLabels,
   relationLabels,
@@ -28,7 +27,7 @@ export function useExportFlow({
   const canExportJson = Boolean(runtimeContext.entitlements?.features?.exportJson);
   const isJsonExportDisabled = !selectedWorldId || entitiesForView.length === 0 || !canExportJson;
   const isMarkdownExportDisabled = !selectedWorldId || entitiesForView.length === 0 || !canExportMarkdown;
-  const jsonExportDisabledReason = !canExportJson ? 'JSON 导出为 Pro 功能' : '';
+  const jsonExportDisabledReason = !canExportJson ? 'JSON 导出仅 Pro 可用' : '';
 
   const handleExport = async (format) => {
     if (!selectedWorldId) {
@@ -36,7 +35,7 @@ export function useExportFlow({
       return;
     }
     if (entitiesForView.length === 0) {
-      onUiMessage?.('当前范围没有可导出的实体', 'warning');
+      onUiMessage?.('当前范围没有可导出内容', 'warning');
       return;
     }
 
@@ -53,17 +52,24 @@ export function useExportFlow({
       return entityIdSet.has(fromEntityId) && entityIdSet.has(toEntityId);
     });
 
-    const authorizeResult = await sendRuntimeMessage('REQUEST_EXPORT', { format });
-    if (!authorizeResult?.success) {
-      onUiMessage?.(formatRuntimeError(authorizeResult, '当前套餐暂不支持该导出操作'), 'error');
+    if (format === 'json' && !canExportJson) {
+      onUiMessage?.('当前套餐不支持 JSON 导出', 'warning');
       return;
     }
-    setRuntimeContext((prev) => ({
-      ...prev,
-      usage: authorizeResult?.usage || prev.usage
-    }));
+
+    if (format === 'markdown' && !canExportMarkdown) {
+      onUiMessage?.('当前套餐不支持 Markdown 导出', 'warning');
+      return;
+    }
 
     if (format === 'json') {
+      try {
+        await entitlementService.consumeExport('json');
+      } catch (error) {
+        onUiMessage?.(error?.message || '当前套餐不支持 JSON 导出', 'warning');
+        return;
+      }
+
       const payload = buildJsonExportPayload({
         selectedWorldId,
         currentWorld,
@@ -82,6 +88,13 @@ export function useExportFlow({
         'application/json;charset=utf-8'
       );
       await refreshRuntimeContext();
+      return;
+    }
+
+    try {
+      await entitlementService.consumeExport('markdown');
+    } catch (error) {
+      onUiMessage?.(error?.message || '当前套餐不支持 Markdown 导出', 'warning');
       return;
     }
 

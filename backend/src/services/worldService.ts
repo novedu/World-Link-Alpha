@@ -48,11 +48,7 @@ export async function getWorldById(worldId: string, userId: string) {
 }
 
 export async function createWorld(input: CreateWorldInput) {
-  // 检查用户配额
-  const hasQuota = await entitlementService.checkWorldQuota(input.userId);
-  if (!hasQuota) {
-    throw new Error('已达到世界数量上限，请升级套餐');
-  }
+  await entitlementService.ensureWorldQuota(input.userId);
 
   return prisma.world.create({
     data: {

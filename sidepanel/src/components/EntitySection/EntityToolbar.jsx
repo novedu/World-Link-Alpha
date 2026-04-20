@@ -24,7 +24,7 @@ export function EntityToolbar({
 }) {
   return (
     <div className="toolbar-wrap toolbar-row-between">
-      <button type="button" onClick={onStartNewEntity} className="btn-primary">
+      <button type="button" onClick={onStartNewEntity} className="btn-primary" data-tour-id="create-entity-btn">
         + 新建设定
       </button>
       <div className="toolbar-wrap toolbar-inline-actions">
@@ -35,7 +35,7 @@ export function EntityToolbar({
           disabled={Boolean(isExportDisabled || isJsonExportDisabled)}
           title={jsonExportDisabledReason || ''}
         >
-          导出 JSON
+          导出 .json
         </button>
         <button
           type="button"
@@ -43,7 +43,7 @@ export function EntityToolbar({
           className="btn-secondary"
           disabled={Boolean(isExportDisabled || isMarkdownExportDisabled)}
         >
-          导出 Markdown
+          导出 .md
         </button>
       </div>
     </div>
@@ -70,7 +70,7 @@ export function EntityFilters({
           type="text"
           value={entitySearchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索名称或描述"
+          placeholder="搜索设定"
           className="field-input toolbar-search"
         />
         <select

@@ -46,6 +46,45 @@
 
 ---
 
+## 评分驱动优先级（90 分冲刺版，2026-04-19）
+
+> 评分来源：`prd/World-Link-Alpha-PRD-overview.md`。
+> 当前口径：文档与规划成熟度复评 `90/100`；产品运行实绩需在 2026-05-20 前达成门槛。
+> 周执行排期与证据模板见：`prd/score-90-execution-plan.md`。
+> W1 日执行细化见：`prd/score-90-w1-daily-plan.md`。
+> W2/W3 日执行细化见：`prd/score-90-w2-daily-plan.md`、`prd/score-90-w3-daily-plan.md`。
+> 周复盘模板见：`prd/score-90-weekly-review-template.md`。
+> 执行前扫描台账（首轮）见：`prd/score-90-pre-scan-register-round1-2026-04-19.md`。
+
+| Item | 目标 | Priority | Status | Owner | Due | DoD |
+| --- | --- | --- | --- | --- | --- | --- |
+| SCORE-01 | 建立新手激活任务流（15 分钟闭环） | P0 | in_progress | 产品 + 前端 | 2026-05-08 | 新用户 D1 激活完成率可统计且 >= 45% |
+| SCORE-02 | 设定来源追溯与“被使用视图”增强 | P0 | in_progress | 前端负责人 | 2026-05-10 | 设定详情可展示来源与使用作品列表 |
+| SCORE-03 | 世界资产问答（带引用）v0 | P1 | todo | 前后端联调 | 2026-05-15 | 回答结果均带实体或来源引用对象 |
+| SCORE-04 | 语义检索增强（不替代结构化筛选） | P1 | todo | 前后端联调 | 2026-05-20 | 可在实体/灵感记录中完成语义召回 |
+| SCORE-05 | 北极星指标看板（激活/留存/复用/转化） | P0 | todo | 产品 + 数据 | 2026-05-10 | 周报可自动产出，口径固定 |
+| SCORE-06 | RC 放行模板制度化执行 | P0 | todo | 产品 + 技术负责人 | 2026-05-12 | 每次 RC 均有 Go/No-Go 记录 |
+| SCORE-07 | Free→Pro 升级实验 v1（门禁触发文案） | P1 | todo | 产品 + 前端 | 2026-05-18 | 14 天转化率 >= 3% |
+| SCORE-08 | 版本冻结纪律执行（功能准入评审） | P0 | todo | 产品负责人 | 2026-05-20 | 冲刺期新增需求均有准入结论 |
+
+### 评分约束
+
+1. `SCORE-01` 与 `SCORE-02` 未完成前，不新增横向复杂模块。
+2. `SCORE-03` 必须以“引用可追溯”为上线前置条件。
+3. `SCORE-04` 只做检索增强，不改变核心对象模型。
+4. `SCORE-05` 未上线前，不宣称“产品实绩达到 90 分”。
+5. 每次执行前必须先做“功能完成度扫描”，判定后再推进。
+
+### 本周执行节奏（W1-W3）
+
+| 周次 | 核心目标 | 关键事项 |
+| --- | --- | --- |
+| W1（2026-04-20 ~ 2026-04-26） | 建立可衡量与可放行基础 | SCORE-05、SCORE-06、TST-02、TST-03 |
+| W2（2026-04-27 ~ 2026-05-03） | 打通激活与追溯主链路 | SCORE-01、SCORE-02 |
+| W3（2026-05-04 ~ 2026-05-10） | 完成增长与价值验证闭环 | SCORE-03、SCORE-04、SCORE-07、SCORE-08 |
+
+---
+
 ## Web/Admin 演进触发节点（非微前端策略）
 
 > 详细蓝图见：`prd/web-admin-evolution-roadmap.md`
@@ -135,6 +174,16 @@
     - 时间轴可视化展示
     - 支持"一键添加关系"与"填充关系草稿"
     - 应用关系时校验：当前编辑设定匹配、目标设定存在、重复关系去重
+
+- [x] Task 11｜首屏启动状态重排（登录引导 / 空态 / 错误态分流）
+  - Owner: 前端负责人
+  - Due: 2026-04-19
+  - Status: done
+  - 已完成：
+    - 未登录时不再请求一轮必然失败的工作区数据
+    - 首屏未登录场景改为 `开始使用` 引导卡
+    - `未登录 / 空数据 / 真错误` 三类状态已拆分
+    - 有存量数据时，刷新失败改为顶部消息提示，不阻断当前工作区
 
 - [x] Task 05｜AI 总结/扩写 v1（云模型化）
   - Owner: 前后端联调
@@ -235,7 +284,7 @@
   - Due: 2026-05-30
   - Status: done
   - 已完成：
-    - 拆分 sidepanel/src/components/EntitySection.jsx（1029行）为多个子组件：
+    - 已将原 `sidepanel/src/components/EntitySection.jsx`（1029行）拆分为多个子组件：
       - `EntitySection/EntityToolbar.jsx`：工具栏（新建设定、导出）
       - `EntitySection/EntityFilters.jsx`：过滤器（搜索、类型、标签）
       - `EntitySection/ManuscriptPanel.jsx`：稿件解析面板
@@ -598,9 +647,12 @@
   - 已接入世界/设定级时间轴事件 API（创建/查询/删除）
   - 已支持“时间轴事件 → 关系草稿/关系落库”联动
 
-- [ ] 生图能力
-  - 进展：已接入 `AI 生成图片` 按钮与 `/ai/generate-image` 调用
-  - 待完成：生成图片的持久化存储、历史资产管理与失败重试体验
+- [x] 生图能力 v0（时间轴持久化）
+  - 已完成：`AI 生成图片` 与 `/ai/generate-image` 调用链路
+  - 已完成：生成结果写入时间轴 `image_generated` 事件（metadata 持久化）
+  - 已完成：编辑器展示“配图历史资产”并支持“设为当前”
+  - 已完成：支持按历史 prompt/style 一键“重试生成”
+  - 已完成：新建未保存设定的配图进入待保存队列，保存后自动补写时间轴
 
 - [ ] 团队协作与权限
   - 支持多人共建同一世界
@@ -872,3 +924,150 @@ cd sidepanel && npm run lint && npm run build && npm test
 3. **建议**：把 TypeScript 的 `strict: true` 分阶段打开（先 `noImplicitAny`，再 `strictNullChecks`）
 4. **建议**：后续可引入 Prettier 与 ESLint 集成，统一代码格式化
 5. **建议**：继续完善共享类型，逐步把 `User`、`World`、`Entity`、`Capture` 等核心模型类型迁入 `shared/`
+
+---
+
+## 90分冲刺进展（2026-04-19）
+
+### 已完成（本轮新增）
+
+- [x] `App.jsx` 完成 Tab 级模块化接入（`AppSections/*`），并修复重复渲染块
+- [x] 关系图谱 UI 子组件完成拆分：`RelationGraphToolbar` / `RelationGraphViewport` / `RelationGraphFocusPanel` / `RelationGraphStatusPanel`
+- [x] 图谱布局算法抽离：`RelationGraphPreview/graphLayout.js`（与视图层解耦）
+- [x] `AppContainer` 薄壳化：主要编排逻辑迁入 `hooks/useAppContainerModel.js`
+- [x] 清理遗弃逻辑残留引用校验：`useRequest` / `toast.service` / `ToastProvider` 均无引用
+- [x] 全量门禁通过：
+  - `npm run verify`
+  - `cd sidepanel && npm run check:docs`
+
+### 评分卡（目标：每项 >= 90）
+
+| 维度 | 当前评分 | 备注 |
+| --- | --- | --- |
+| 构建与发布可靠性 | 92 | `verify` 全绿（lint/typecheck/test/build）+ CI 持续校验 |
+| React 规范与可维护性 | 90 | `App.jsx` 已降至 365 行；Tab 分段完成；图谱组件完成二次拆分 |
+| 类型与接口一致性 | 90 | 前后端关键链路 any 持续收敛，协议与错误结构统一 |
+| 架构清晰度 | 91 | 容器/视图/算法分层更清晰，遗弃请求与上下文逻辑已删除 |
+| 工程治理与文档 | 90 | PRD/TODO/开发规范同步，文档一致性检查通过 |
+
+### 关键证据（本轮）
+
+- 行数快照：
+  - `sidepanel/src/App.jsx`：365 行
+  - `sidepanel/src/AppContainer.jsx`：10 行
+  - `sidepanel/src/components/RelationGraphPreviewCard.jsx`：318 行
+  - `sidepanel/src/components/AppSections/EntitiesTabSection.jsx`：124 行
+- 验证命令：
+  - `npm run verify` ✅
+  - `cd sidepanel && npm run check:docs` ✅
+
+### 下一步（冲刺 95）
+
+- [ ] 拆分 `WorldSummaryCard.jsx`（当前 431 行）为“指标/图谱/快览”子块
+- [ ] 拆分 `useAppContainerModel.js`（当前 472 行）为“数据聚合层 + 交互编排层”
+- [ ] 完成 Sidepanel 视觉 Token 覆盖巡检（间距/滚动/空态一致性）
+
+---
+
+## 去 Demo 化功能冲刺（2026-04-19）
+
+### 已完成（真实链路）
+
+- [x] Sidepanel 数据读取切到云端 API 主链路（世界/书/设定/关系/灵感），移除“认证失败回退本地”
+- [x] 增加未登录态明确引导（`authRequired` + 侧栏登录提示卡）
+- [x] 新建世界/作品改为真实 API 写入（不再走本地 runtime mock）
+- [x] 设定保存改为真实 API 写入，并打通：
+  - 设定↔作品绑定（bind/unbind）
+  - 设定关系持久化（后端新增关系列表与覆盖接口）
+  - 从灵感创建设定后自动标记转换
+- [x] 灵感状态更新改为按 `captureId` 调 API（修复文本匹配导致的误更新）
+- [x] 批量关系应用改为 API 驱动（按设定名匹配实体并写入关系）
+- [x] 刷新链路改为真实重拉云端数据（替代仅发 runtime 刷新消息）
+- [x] AI 主链路切换为后端 API（移除 Sidepanel 对 runtime AI mock 依赖）：
+  - `POST /api/ai/entity-assist`
+  - `POST /api/ai/entity-conflict`
+  - `POST /api/ai/report-feedback`
+  - `POST /api/ai/parse-manuscript`
+- [x] 书稿解析切到云端接口，返回统一结构：`suggestions + relationSuggestions + provider/model/strategyVersion`
+- [x] 关系编辑器可用性修复：
+  - “目标设定”改为下拉选择（展示名称，存储 ID）
+  - 支持关系类型选择与备注录入
+  - 新建设定阶段也可先维护关系草稿，保存后统一持久化
+  - 修复 `editingEntity.onChangeField` 无效调用（改为使用 `onChangeField`）
+- [x] 清理无调用的旧 runtime 入口（防止回流到 demo 逻辑）：
+  - `background.js` 已移除 `AI_ENTITY_ASSIST / REPORT_AI_FEEDBACK / CHECK_ENTITY_CONFLICT / PARSE_MANUSCRIPT / SAVE_ENTITY_FROM_SIDEPANEL` 消息分发
+  - `sidepanel/src/constants/worldLink.js` 已删除未使用 `MESSAGE_TYPES` 旧常量
+- [x] 网页采集链路去本机化（background → 后端 API）：
+  - 采集保存 `SAVE_ENTITY` 改为调用后端 `/api/entities`，并同步写入 `/api/captures`
+  - 采集弹窗的世界/书项目来源改为后端 `/api/worlds + /api/books`
+  - 保存成功后广播 `DATA_UPDATED`，Sidepanel 可自动重拉最新数据
+- [x] 协议历史残留清理：
+  - 移除 background 中未使用的 `/v1/*` 常量与 mock cloud 方案常量
+  - 修正迁移流程请求路径为 `/api/store` / `/api/store/import`（并补齐鉴权头）
+- [x] 默认运行时收敛为云端优先：
+  - `background` 默认 `repositoryMode` 调整为 `cloud`
+  - 启动阶段移除本地 seed 数据注入逻辑
+  - `sidepanel/runtimeApi` 默认运行时上下文调整为 `cloud`
+- [x] 账号弹窗去本机迁移入口：
+  - 移除“迁移本机数据到云端”按钮与对话流
+  - 保留“刷新套餐 / 登录注册 / 升级 / 退出”核心账号操作
+  - background 已移除 `MIGRATE_LOCAL_TO_CLOUD` 消息分发与废弃 handler 文件
+- [x] AI 服务端门禁收口：
+  - `backend /api/ai/*` 全部接口新增服务端 `checkFeatureAccess(userId, 'ai')`
+  - 非 AI 套餐统一返回 `403 AI_FEATURE_DISABLED`，前端不再只依赖本地 UI 门禁
+- [x] 套餐/配额服务层强校验收口：
+  - `worldService.createWorld` 接入 `ensureWorldQuota`
+  - `bookService.createBook` 接入 `ensureBookQuota`
+  - `entityService.createEntity` 接入 `ensureEntityQuota`
+  - `captureService.createCapture` 接入 `ensureCaptureQuota`（按“今日”统计）
+- [x] 导出门禁与计量服务端化：
+  - 新增 `POST /api/entitlements/exports/consume`
+  - Sidepanel 导出前强制 `consumeExport(format)`，失败即终止下载
+  - 导出完成后刷新套餐快照，确保使用量可见
+- [x] 权益快照结构升级：
+  - `getEntitlementWithUsage` 返回 `maxBooksPerWorld / canExportMarkdown / canExportJson / canUseAI`
+  - 前端运行时上下文映射兼容 `features + limits + usage + exports`
+- [x] 统一业务错误结构：
+  - 新增 `AppError`（`statusCode/code/details/fieldErrors`）
+  - `errorHandler` 统一输出对象结构，便于前端按错误码处理
+- [x] 自动化回归补强（套餐门禁）：
+  - 新增 `backend/test/e2e-entitlement-guards.test.ts`
+  - 覆盖世界配额上限、导出计量门禁、Free→Pro AI 可用性切换
+  - 覆盖 AI 路由门禁：`/api/ai/entity-assist` 在 Free 返回 403，在 Pro 返回 200
+  - `backend/package.json` 的 `test:e2e` 升级为 `test/e2e-*.test.ts`
+- [x] 设定来源追溯与被使用视图（v0）：
+  - 设定卡片新增来源信息与“被作品使用次数”展示
+  - 设定编辑器新增来源标题 / 来源链接编辑能力
+  - 设定编辑器新增“被哪些作品引用”列表（基于 `entity.usages`）
+  - 设定保存后补拉详情，确保编辑态可见最新 usages 与来源信息
+
+- [x] 生图能力 v0 闭环（时间轴持久化 + 历史资产 + 重试）：
+  - 新增 `sidepanel/src/services/timeline.service.ts`，统一生图事件读写
+  - `useEntityEditorFlow` 新增生图生成、待保存资产、时间轴回填能力
+  - 设定编辑器新增“配图资产”列表与“设为当前/重试生成”交互
+
+- [x] 新手激活任务流 v1（SCORE-01 子项）：
+  - 新增 `ActivationChecklistCard`，覆盖“世界/作品/设定/灵感/作品绑定”五步闭环
+  - 支持进度显示、一步直达动作与会话级“稍后再看”
+  - 已接入 `App` 主壳层，默认在登录后且未完成激活时展示
+  - 已新增分步引导 Tour v2（目标高亮 + 指示箭头 + 自动滚动到目标 + 上一步/下一步 + 步骤动作）
+  - 蒙层支持“目标穿透点击”：高亮目标可直接操作，非目标区域被遮罩拦截
+  - 已升级 Tour v3：按步骤 `done` 状态自动推进，支持“首个未完成步骤”启动
+  - 已接入激活埋点：`activation_session_start / activation_step_completed / activation_completed`
+  - 已接入引导行为埋点：`tour_opened / tour_closed / tour_step_viewed / tour_step_action / tour_next / tour_prev / tour_auto_advance`
+  - 事件字典已落文档：`prd/activation-event-dictionary.md`
+  - 账号弹窗已新增“开发：激活埋点调试”折叠区（快照刷新 / 清空事件 / 最近事件列表）
+  - 调试区已支持“一键导出 JSON”快照（用于离线漏斗分析与问题复盘）
+
+### 后端新增接口（本轮）
+
+- [x] `GET /api/entities/relations?worldId=...`
+- [x] `PUT /api/entities/:id/relations`
+- [x] `POST /api/ai/parse-manuscript`
+- [x] 新增服务：`backend/src/services/entityRelationService.ts`
+
+### 验收记录
+
+- [x] `npm run verify`（lint/typecheck/check:docs/test/build）通过
+- [x] 验证时间：2026-04-19（套餐门禁与导出计量改造后）
+- [x] 备注：沙箱内 backend contract test 端口受限，已在批准后执行完整验证

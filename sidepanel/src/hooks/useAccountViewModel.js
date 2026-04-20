@@ -7,13 +7,12 @@ export function useAccountViewModel({ runtimeContext, authSession }) {
   const cloudLastError = runtimeContext.cloudDiagnostics?.lastError;
   const cloudLastErrorHint =
     cloudLastError?.message
-      ? `最近一次同步错误：${cloudLastError.message}${cloudLastError.traceId ? `（trace: ${cloudLastError.traceId}）` : ''}`
+      ? `最近同步失败：${cloudLastError.message}${cloudLastError.traceId ? `（${cloudLastError.traceId}）` : ''}`
       : '';
   const accountDisplayName = authSession?.email ? authSession.email.split('@')[0] || authSession.email : '未登录';
-  const accountIdentityLabel = authSession?.email || '登录后自动开启云端同步';
-  const accountTriggerStatus = authSession?.email ? `${effectivePlan} · 已同步` : `${effectivePlan} · 点击登录`;
-  const helperText = authSession?.email ? '已登录账号，数据将自动云端同步。' : '登录后自动开启云端同步与跨设备访问。';
-  const canMigrate = Boolean(authSession?.email);
+  const accountIdentityLabel = authSession?.email || '登录后开启云同步';
+  const accountTriggerStatus = authSession?.email ? `${effectivePlan} · 已同步` : '未同步 · 未登录';
+  const helperText = authSession?.email ? '数据会自动同步到云端。' : '登录后可开启云同步。';
   const canUpgradePlan = Boolean(authSession?.email && authSession.plan !== 'pro');
 
   return {
@@ -25,7 +24,6 @@ export function useAccountViewModel({ runtimeContext, authSession }) {
     accountIdentityLabel,
     accountTriggerStatus,
     helperText,
-    canMigrate,
     canUpgradePlan
   };
 }

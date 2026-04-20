@@ -18,9 +18,10 @@ function PrimaryTabBar({ activeTab, onTabChange, captureCount }) {
             className={`tab-button ${isActive ? 'tab-button-active' : ''}`}
             onClick={() => onTabChange(item.id)}
             aria-pressed={isActive}
+            data-tour-id={`tab-${item.id}`}
           >
             <span className={item.iconClassName} aria-hidden="true" />
-            <span>{item.label}</span>
+            <span className="tab-label">{item.label}</span>
             {item.id === 'captures' && captureCount > 0 ? (
               <span className="tab-badge">{captureBadge}</span>
             ) : null}

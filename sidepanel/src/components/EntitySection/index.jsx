@@ -16,6 +16,7 @@ function EntitySection({
   tagOptions,
   baseTagOptions,
   entitiesInWorld,
+  relationOptions,
   relationLabels,
   manuscriptText,
   manuscriptSuggestions,
@@ -48,11 +49,14 @@ function EntitySection({
   isSavingEntity,
   isAiAssisting,
   isCheckingConflict,
+  isGeneratingImage,
   isSubmittingAiFeedback,
   aiAssistMeta,
   aiAssistProfile,
   onAiAssistProfileChange,
   conflictCheckMeta,
+  onGenerateEntityImage,
+  onApplyImageAsset,
   onSubmitAiFeedback,
   isEntityUsedInCurrentBook,
   totalEntitiesInContext,
@@ -99,11 +103,11 @@ function EntitySection({
       <div className="section-body">
         <EmptyStateCard
           icon="世"
-          title="还没有可用世界"
-          description="先创建世界观库，再管理设定与作品。"
+          title="先创建世界"
+          description="先建世界，再开始整理设定。"
           actions={[
-            { label: '+ 新建世界观', onClick: onAddWorld, variant: 'primary' },
-            { label: '先去灵感箱', onClick: onGoToCaptureTab }
+            { label: '+ 新建世界', onClick: onAddWorld, variant: 'primary' },
+            { label: '去灵感箱', onClick: onGoToCaptureTab }
           ]}
         />
       </div>
@@ -185,6 +189,9 @@ function EntitySection({
             aiAssistProfile={aiAssistProfile}
             conflictCheckMeta={conflictCheckMeta}
             baseTagOptions={baseTagOptions}
+            entitiesInWorld={entitiesInWorld}
+            relationOptions={relationOptions}
+            relationLabels={relationLabels}
             onChangeField={onChangeField}
             onToggleEditorTag={onToggleEditorTag}
             onAiAssist={onAiAssist}
@@ -193,7 +200,11 @@ function EntitySection({
             onSubmitAiFeedback={onSubmitAiFeedback}
             isAiAssisting={isAiAssisting}
             isCheckingConflict={isCheckingConflict}
+            isGeneratingImage={isGeneratingImage}
             isSubmittingAiFeedback={isSubmittingAiFeedback}
+            onGenerateImage={onGenerateEntityImage}
+            onRetryImage={onGenerateEntityImage}
+            onApplyImageAsset={onApplyImageAsset}
             isSavingEntity={isSavingEntity}
             onSaveEntity={onSaveEntity}
             onCancelEdit={onCancelEdit}

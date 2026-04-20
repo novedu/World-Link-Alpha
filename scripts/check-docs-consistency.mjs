@@ -13,7 +13,13 @@ const requiredFiles = [
   'prd/TODO.md',
   'prd/frontend-architecture-messaging.md',
   'prd/freemium-cloud-architecture.md',
+  'prd/web-admin-evolution-roadmap.md',
+  'prd/testing-strategy-and-release-gate.md',
+  'prd/e2e-acceptance-checklist.md',
+  'prd/testing-asset-register-template.md',
+  'prd/testing-asset-register-round1-2026-04-19.md',
   'prd/plugin-to-web-migration.md',
+  'prd/readany-overlap-analysis.md',
   'design/README.md',
   'design/ux-spec.md',
   'design/ui-design-spec.md'
@@ -40,6 +46,20 @@ const contentSentinels = {
 }
 const ignoreDirs = new Set(['node_modules', '.git', 'dist', 'build', '.claude', '.codex'])
 const allowedReferenceFiles = new Set(['prd/TODO.md'])
+
+function extractDeclaredDocPaths(content) {
+  const regex = /`([^`]+)`/g
+  const declared = new Set()
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    const value = String(match[1] || '').trim()
+    if (!value) continue
+    if (value.startsWith('prd/') || value.startsWith('design/')) {
+      declared.add(value.replace(/\/+$/g, ''))
+    }
+  }
+  return [...declared]
+}
 
 function walkFiles(dir, ext = '.md') {
   if (!existsSync(dir)) return []
@@ -99,6 +119,12 @@ if (existsSync(prdReadme)) {
       errors.push(`prd/README.md 未声明关键文档：${hint}`)
     }
   }
+  const declaredDocs = extractDeclaredDocPaths(content)
+  for (const declaredDoc of declaredDocs) {
+    if (!existsSync(path.join(rootDir, declaredDoc))) {
+      errors.push(`prd/README.md 声明的文档不存在：${declaredDoc}`)
+    }
+  }
 }
 
 const designReadme = path.join(rootDir, 'design/README.md')
@@ -107,6 +133,12 @@ if (existsSync(designReadme)) {
   for (const hint of requiredReadmeHints.filter((item) => item.startsWith('design/'))) {
     if (!content.includes(hint)) {
       errors.push(`design/README.md 未声明关键文档：${hint}`)
+    }
+  }
+  const declaredDocs = extractDeclaredDocPaths(content)
+  for (const declaredDoc of declaredDocs) {
+    if (!existsSync(path.join(rootDir, declaredDoc))) {
+      errors.push(`design/README.md 声明的文档不存在：${declaredDoc}`)
     }
   }
 }

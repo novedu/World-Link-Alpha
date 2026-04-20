@@ -7,11 +7,11 @@
 - 前端插件代码：`sidepanel/`、`content.js`、`background.js`
 - 产品文档：`prd/`、`design/`
 
-## 2. 当前基线（2026-04-16）
+## 2. 当前基线（2026-04-19）
 
 - `sidepanel/src/App.jsx`：约 `370` 行（已进入阈值范围）
 - 已完成拆分：
-  - 视图组件：`BrandHeader`、`InlineMessage`、`AccountSyncModal`、`ActionDialog`、`EntitySection`、`CaptureSection`
+  - 视图组件：`BrandHeader`、`InlineMessage`、`AccountSyncModal`、`ActionDialog`、`EntitySection/index.jsx`、`CaptureSection`、`TimelineSection`
   - 数据模块：`constants/worldLink.js`、`utils/*`、`hooks/useEntityFilters`、`hooks/useCaptureFilters`
   - 流程模块：`hooks/useRuntimeContext`、`hooks/useActionDialogFlow`、`hooks/useEntityEditorFlow`、`hooks/useCaptureInboxFlow`、`hooks/useStorageSync`、`hooks/useExportFlow`、`hooks/useOverviewStats`、`hooks/useAccountViewModel`、`hooks/useUiMessage`、`hooks/useSelectionState`、`hooks/useWorldBookMeta`、`hooks/useWorldBookSelectionHandlers`
   - 服务模块：`services/runtimeApi.js`、`services/exportService.js`
@@ -38,6 +38,7 @@ sidepanel/src
 │   │   ├── EntityList.jsx        # 实体列表
 │   │   ├── EntityEditor.jsx      # 实体编辑器（含冲突检查、AI反馈、标签、关系）
 │   │   └── index.jsx             # 组合所有子组件
+│   ├── TimelineSection.jsx       # 时间轴模块（事件列表、写入、删除）
 │   └── ...其他组件
 ├── hooks/          # useXxx 状态与副作用封装
 ├── services/       # chrome.runtime / export / auth 调用
@@ -57,21 +58,21 @@ background/
 │   └── dataRepository.js   # 数据仓库（封装 chrome.storage 读写）
 ├── services/
 │   ├── authService.js           # 认证服务（登录/注册/会话管理）
-│   ├── entityService.js          # 实体服务（实体CRUD/冲突检查）
+│   ├── entityService.js          # 实体服务（实体CRUD/采集入库）
 │   ├── worldBookService.js       # 世界/书籍服务（世界/书籍CRUD）
 │   └── entitlementService.js     # 权限服务（套餐/配额管理）
 ├── handlers/
 │   ├── authHandler.js           # 认证消息处理（SIGN_IN/REGISTER/GET_AUTH_SESSION等）
-│   ├── entityHandler.js          # 实体消息处理（SAVE_ENTITY/CHECK_CONFLICT等）
+│   ├── entityHandler.js          # 实体消息处理（SAVE_ENTITY 等）
 │   ├── worldBookHandler.js       # 世界/书籍消息处理（CREATE_WORLD/CREATE_BOOK等）
 │   ├── runtimeHandler.js        # 运行时消息处理（REFRESH_DATA/GET_RUNTIME_CONFIG等）
 │   ├── captureHandler.js         # 采集消息处理（UPDATE_CAPTURE_STATUS等）
-│   ├── aiHandler.js              # AI消息处理（AI_ENTITY_ASSIST/REPORT_AI_FEEDBACK等）
 │   ├── exportHandler.js          # 导出消息处理（REQUEST_EXPORT等）
-│   ├── entitlementHandler.js    # 权限消息处理（GET_ENTITLEMENTS/REFRESH_ENTITLEMENTS等）
-│   └── migrateHandler.js         # 迁移消息处理（MIGRATE_LOCAL_TO_CLOUD等）
+│   └── entitlementHandler.js    # 权限消息处理（GET_ENTITLEMENTS/REFRESH_ENTITLEMENTS等）
 └── background.js                # 入口文件（初始化 + 消息路由分发）
 ```
+
+> 说明：AI 能力统一走 `backend /api/ai/*`，`background` 不再分发 `AI_*` 与迁移类消息。
 
 ## 3.3 App 容器职责边界
 
@@ -123,16 +124,18 @@ background/
 
 ### 7.1 冒烟场景最小集
 
-每次涉及消息协议、存储写入、套餐门禁的改动，至少覆盖以下 3 类场景：
+每次涉及消息协议、存储写入、套餐门禁的改动，至少覆盖以下 4 类场景：
 
 1. 实体保存链路
-   - 网页采集 `SAVE_ENTITY` 成功写入
-   - Sidepanel 编辑 `SAVE_ENTITY_FROM_SIDEPANEL` 成功写入
+   - 网页采集 `SAVE_ENTITY` 成功写入 `/api/entities + /api/captures`
+   - Sidepanel 编辑成功写入 `/api/entities` 与 `/api/entities/:id/relations`
 2. 导出授权门禁
-   - Free 用户导出 JSON 被拒绝
-   - Pro 用户导出 JSON 通过
+   - Free 用户调用 `/api/entitlements/exports/consume`（json）被拒绝
+   - Pro 用户调用 `/api/entitlements/exports/consume`（json）通过且计量递增
 3. 配额拒绝链路
-   - 达到世界/书/实体/捕获阈值后收到明确拒绝与可读错误提示
+   - 达到世界/书/实体/捕获阈值后，创建接口返回 403 + 业务错误码
+4. AI 套餐门禁链路
+   - 非 AI 套餐访问 `/api/ai/*` 返回 `403 AI_FEATURE_DISABLED`
 
 ### 7.2 执行与记录要求
 
@@ -206,12 +209,12 @@ background/
 
 ### 12.1 Lint 基线收敛（Phase 1）
 
-- ESLint 配置：`backend/eslint.config.js`（flat config）、`sidepanel/.eslintrc.cjs`
+- ESLint 配置：`backend/eslint.config.mjs`（flat config）、`sidepanel/eslint.config.js`
 - 规则设置：
   - `@typescript-eslint/no-explicit-any`：从 off 调整为 warn
   - `@typescript-eslint/no-unused-vars`：warn（忽略 _ 开头变量）
   - 保持向后兼容，不一次性拉满
-- 当前基线：34 个警告，0 错误
+- 当前基线：0 error，warning 按阶段收敛
 
 ### 12.2 Git 提交门禁（Phase 2）
 
@@ -221,6 +224,7 @@ background/
   - `.husky/pre-commit`：运行 `npx lint-staged`
   - `package.json` 新增 lint-staged 配置，分前后端文件范围自动 lint
 - 跳过紧急提交：`git commit --no-verify`（仅允许紧急修复）
+- CI 门禁：`.github/workflows/verify.yml` 必须执行 `npm run verify`
 
 ### 12.3 共享类型收敛（Phase 3）
 
@@ -245,6 +249,9 @@ background/
 ## 13. 验收命令
 
 ```bash
+# 一键验收（推荐）
+npm run verify
+
 # 后端
 cd backend && npm run build
 cd backend && npm run typecheck
@@ -255,3 +262,62 @@ cd sidepanel && npm run lint
 cd sidepanel && npm run build
 cd sidepanel && npm test
 ```
+
+## 14. 质量评分卡（90分门槛）
+
+### 14.1 评分维度（每项 >= 90）
+
+| 维度 | 达标定义（90分） | 当前策略 |
+| --- | --- | --- |
+| 构建与发布可靠性 | `lint + typecheck + test + build` 全绿，且 CI 持续复现 | 根脚本 `verify` + GitHub Actions `verify.yml` |
+| React 规范与可维护性 | 页面按 Tab/模块拆分，关键容器职责清晰，大文件持续压降 | `App.jsx` 已接入 `AppSections/*`，图谱组件与算法已解耦 |
+| 类型与接口一致性 | 关键链路去 `any`、前后端响应结构统一、错误对象标准化 | `shared/types` + routes validation + `getFieldErrors` |
+| 架构清晰度 | 请求层单一、遗弃路径清零、容器/视图/算法边界明确 | 删除旧 request/context，`useAppContainerModel` 收敛编排 |
+| 工程治理与文档 | 文档与实现一致，验收证据可追踪，变更有回填 | `prd`/`design` 同步更新 + `check:docs` |
+
+### 14.2 评分执行规则
+
+1. 每次迭代结束必须回填“评分表 + 证据命令输出”
+2. 任一维度 < 90：禁止标记“可上线（稳定版）”
+3. 连续两次 >= 90 后，进入 95 分冲刺（strict 模式与更细粒度门禁）
+
+### 14.3 本轮达标证据（2026-04-19）
+
+- 命令结果：
+  - `npm run verify`：通过
+  - `cd sidepanel && npm run check:docs`：通过
+- 模块化证据：
+  - `sidepanel/src/App.jsx`：365 行（Tab 区块分离）
+  - `sidepanel/src/AppContainer.jsx`：10 行（容器薄壳）
+  - `sidepanel/src/components/RelationGraphPreviewCard.jsx`：318 行（图谱视图收敛）
+  - `sidepanel/src/components/RelationGraphPreview/graphLayout.js`：布局算法独立文件
+
+## 15. 非 Demo 化约束（新增）
+
+1. **Sidepanel 真实数据源优先**
+   - 世界/书/设定/关系/灵感的读写默认走后端 API；
+   - 禁止新增仅写 `chrome.storage.local` 且不走后端的业务主链路。
+
+2. **认证失败处理统一**
+   - 401 不再静默回退本地业务数据；
+   - 必须给出可操作引导（登录入口 + 明确状态文案）。
+
+3. **写后可见**
+   - 所有关键写操作（创建/编辑/状态变更）完成后必须触发数据重拉；
+   - 禁止“写成功但 UI 仍停留旧快照”的实现。
+
+4. **关系数据持久化**
+   - 设定关系（EntityRelation）属于核心资产，必须走服务端持久化；
+   - 禁止只在前端内存态或本地临时存储中维护关系主数据。
+
+5. **AI 链路后端化**
+   - 设定 AI 能力（总结/冲突/书稿解析/反馈）必须走 `/api/ai/*`；
+   - 禁止在 Sidepanel 主流程继续依赖 runtime AI mock 消息。
+
+6. **配额校验服务端化**
+   - 世界/作品/设定/灵感创建必须在服务层执行 `ensure*Quota`；
+   - 禁止仅靠前端禁用按钮实现套餐限制。
+
+7. **导出先计量后下载**
+   - 导出操作必须先调用 `/api/entitlements/exports/consume`；
+   - 计量校验失败时禁止触发文件下载。

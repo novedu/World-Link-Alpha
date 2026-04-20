@@ -3,9 +3,9 @@ import RelationGraphPreviewCard from './RelationGraphPreviewCard';
 import EmptyStateCard from './EmptyStateCard';
 
 const ACTIVITY_GROUP_META = {
-  high: { label: '高活跃', hint: '关系密度高，优先复用' },
-  mid: { label: '中活跃', hint: '结构稳定，可持续补充' },
-  low: { label: '低活跃', hint: '基础库，可按需扩展' }
+  high: { label: '高活跃', hint: '关系多，优先复用' },
+  mid: { label: '中活跃', hint: '结构稳，可继续补' },
+  low: { label: '低活跃', hint: '刚起步，可继续扩' }
 };
 
 function resolveWorldActivity(row) {
@@ -61,16 +61,14 @@ function WorldSummaryCard({
   bookRelationCount,
   bookRelationTypeRows,
   bookRelationPreviewRows,
-  bookRelationGraphEdges
+  bookRelationGraphEdges,
+  onGoToTimelineTab
 }) {
   const [quickKeyword, setQuickKeyword] = useState('');
   const [quickSortBy, setQuickSortBy] = useState('smart');
   const [quickViewMode, setQuickViewMode] = useState('flat');
-  const [quickGroupBy, setQuickGroupBy] = useState('activity'); // activity, tag, domain
-  const timelineFilter = 'all';
-  const timelineSort = 'time'; // time, type
-  
-  const timelineRows = [
+
+  const recentActivityRows = [
     ...recentEntities.map((entity) => ({
       id: `entity-${entity.id}`,
       timestamp: Number(entity.updatedAt || entity.createdAt || 0),
@@ -90,18 +88,8 @@ function WorldSummaryCard({
     }))
   ]
     .filter((row) => row.timestamp > 0)
-    .filter((row) => {
-      if (timelineFilter === 'all') return true;
-      return row.type === timelineFilter;
-    })
-    .sort((a, b) => {
-      if (timelineSort === 'time') {
-        return b.timestamp - a.timestamp;
-      } else {
-        return a.type.localeCompare(b.type) || b.timestamp - a.timestamp;
-      }
-    })
-    .slice(0, 12);
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 6);
 
   const canUseBookScope = Boolean(selectedBookId);
   const canSwitchBookGraph = Array.isArray(booksInWorld) && booksInWorld.length > 0;
@@ -130,69 +118,23 @@ function WorldSummaryCard({
   }, [worldQuickRows, quickSortBy, normalizedQuickKeyword]);
   const quickGroupedRows = useMemo(() => {
     if (quickViewMode !== 'grouped') return [];
-    
-    if (quickGroupBy === 'activity') {
-      const groups = {
-        high: [],
-        mid: [],
-        low: []
-      };
-      quickRowsForView.forEach((row) => {
-        const key = resolveWorldActivity(row);
-        groups[key].push(row);
-      });
-      return ['high', 'mid', 'low']
-        .map((key) => ({
-          key,
-          ...ACTIVITY_GROUP_META[key],
-          rows: groups[key]
-        }))
-        .filter((group) => group.rows.length > 0);
-    }
-    
-    // 按标签分组（简化实现，使用世界名称的首字符作为标签示例）
-    if (quickGroupBy === 'tag') {
-      const groups = {};
-      quickRowsForView.forEach((row) => {
-        const tag = row.worldName.charAt(0).toUpperCase();
-        if (!groups[tag]) groups[tag] = [];
-        groups[tag].push(row);
-      });
-      return Object.entries(groups)
-        .map(([key, rows]) => ({
-          key,
-          label: `标签 ${key}`,
-          hint: `包含 ${rows.length} 个世界观库`,
-          rows
-        }))
-        .sort((a, b) => a.key.localeCompare(b.key));
-    }
-    
-    // 按领域分组（简化实现，根据关系数和实体数判断领域）
-    if (quickGroupBy === 'domain') {
-      const groups = {
-        fantasy: [],
-        sciFi: [],
-        modern: []
-      };
-      quickRowsForView.forEach((row) => {
-        if (row.relations > 8) {
-          groups.fantasy.push(row);
-        } else if (row.entities > 15) {
-          groups.sciFi.push(row);
-        } else {
-          groups.modern.push(row);
-        }
-      });
-      return [
-        { key: 'fantasy', label: '奇幻领域', hint: '关系密集的世界观', rows: groups.fantasy },
-        { key: 'sciFi', label: '科幻领域', hint: '实体丰富的世界观', rows: groups.sciFi },
-        { key: 'modern', label: '现代领域', hint: '基础设定的世界观', rows: groups.modern }
-      ].filter((group) => group.rows.length > 0);
-    }
-    
-    return [];
-  }, [quickRowsForView, quickViewMode, quickGroupBy]);
+    const groups = {
+      high: [],
+      mid: [],
+      low: []
+    };
+    quickRowsForView.forEach((row) => {
+      const key = resolveWorldActivity(row);
+      groups[key].push(row);
+    });
+    return ['high', 'mid', 'low']
+      .map((key) => ({
+        key,
+        ...ACTIVITY_GROUP_META[key],
+        rows: groups[key]
+      }))
+      .filter((group) => group.rows.length > 0);
+  }, [quickRowsForView, quickViewMode]);
 
   const renderQuickRow = (row) => {
     const isCurrent = String(row.worldId) === String(selectedWorldId || '');
@@ -239,21 +181,21 @@ function WorldSummaryCard({
     <div className="section-body">
       <div className="summary-grid">
         <div className="summary-item">
-          <div className="summary-item-label">当前世界观库</div>
-          <div className="summary-item-value">{currentWorld?.name || '未选择世界观库'}</div>
+          <div className="summary-item-label">当前世界</div>
+          <div className="summary-item-value">{currentWorld?.name || '未选择世界'}</div>
         </div>
         <div className="summary-item">
           <div className="summary-item-label">当前作品</div>
-          <div className="summary-item-value">{currentBook?.title || '全部作品 / 未指定'}</div>
+          <div className="summary-item-value">{currentBook?.title || '全部作品'}</div>
         </div>
       </div>
 
       <div className="overview-block">
         {renderOverviewTitle({
           icon: '跨',
-          title: '跨世界快览（v1）',
+          title: '世界快览',
           meta: hasWorldQuickRows
-            ? `${quickRowsForView.length}/${worldQuickRows.length} 个世界观库${normalizedQuickKeyword ? '（已过滤）' : ''}`
+            ? `${quickRowsForView.length}/${worldQuickRows.length} 个世界${normalizedQuickKeyword ? '（已筛选）' : ''}`
             : ''
         })}
         <div className="world-quick-toolbar">
@@ -261,7 +203,7 @@ function WorldSummaryCard({
             className="field-input world-quick-search"
             value={quickKeyword}
             onChange={(event) => setQuickKeyword(event.target.value)}
-            placeholder="搜索世界观库..."
+            placeholder="搜索世界"
           />
           <select
             className="field-input world-quick-sort"
@@ -281,18 +223,8 @@ function WorldSummaryCard({
             <option value="flat">平铺列表</option>
             <option value="grouped">分组视图</option>
           </select>
-          {quickViewMode === 'grouped' && (
-            <select
-              className="field-input world-quick-group"
-              value={quickGroupBy}
-              onChange={(event) => setQuickGroupBy(event.target.value)}
-            >
-              <option value="activity">按活跃度</option>
-              <option value="tag">按标签</option>
-              <option value="domain">按领域</option>
-            </select>
-          )}
         </div>
+        {quickViewMode === 'grouped' ? <p className="helper-text overview-inline-note">按活跃度分组查看。</p> : null}
         {hasWorldQuickRows ? (
           quickRowsForView.length > 0 ? (
             quickViewMode === 'grouped' ? (
@@ -318,18 +250,18 @@ function WorldSummaryCard({
             <EmptyStateCard
               compact
               icon="筛"
-              title="没有匹配的世界观库"
-              description="试试清空关键词或切换排序方式。"
+              title="没有匹配结果"
+              description="换个关键词，或清空筛选。"
               actions={normalizedQuickKeyword ? [{ label: '清空关键词', onClick: () => setQuickKeyword('') }] : []}
             />
           )
         ) : (
-          <EmptyStateCard compact icon="库" title="暂无可快览的世界观库数据" description="先创建世界观库并录入设定，概览会自动生成。" />
+          <EmptyStateCard compact icon="库" title="还没有世界数据" description="先建世界，概览会自动出现。" />
         )}
       </div>
 
       <div className="overview-block">
-        {renderOverviewTitle({ icon: '类', title: '类型分布' })}
+        {renderOverviewTitle({ icon: '类', title: '设定类型' })}
         {distributionRows.length > 0 ? (
           <div className="overview-list">
             {distributionRows.map((row) => (
@@ -340,12 +272,12 @@ function WorldSummaryCard({
             ))}
           </div>
         ) : (
-          <EmptyStateCard compact icon="类" title="当前范围暂无设定类型数据" description="可先在设定库中新建或导入设定。" />
+          <EmptyStateCard compact icon="类" title="还没有类型数据" description="先新增设定，再回来看分布。" />
         )}
       </div>
 
       <div className="overview-block">
-        {renderOverviewTitle({ icon: '更', title: '最近更新设定' })}
+        {renderOverviewTitle({ icon: '更', title: '最近更新' })}
         {recentEntities.length > 0 ? (
           <div className="overview-list">
             {recentEntities.map((entity) => (
@@ -359,12 +291,12 @@ function WorldSummaryCard({
             ))}
           </div>
         ) : (
-          <EmptyStateCard compact icon="设" title="当前世界观库还没有设定" description="先在设定库新建条目，更新记录会自动出现在这里。" />
+          <EmptyStateCard compact icon="设" title="还没有设定" description="先新建设定，这里会显示最近更新。" />
         )}
       </div>
 
       <div className="overview-block">
-        {renderOverviewTitle({ icon: '灵', title: '最近灵感记录' })}
+        {renderOverviewTitle({ icon: '灵', title: '最近灵感' })}
         {recentCaptures.length > 0 ? (
           <div className="overview-list">
             {recentCaptures.map((capture) => (
@@ -378,15 +310,15 @@ function WorldSummaryCard({
             ))}
           </div>
         ) : (
-          <EmptyStateCard compact icon="灵" title="暂无灵感记录" description="网页划词后会自动出现在灵感箱和此处。" />
+          <EmptyStateCard compact icon="灵" title="还没有灵感" description="划词保存后，这里会自动更新。" />
         )}
       </div>
 
       <div className="overview-block overview-block-emphasis">
         {renderOverviewTitle({
           icon: '图',
-          title: '设定关系图谱（v2）',
-          meta: `${isBookScope ? '当前作品视图' : '世界范围视图'} · ${activeRelationCount} 条关系`
+          title: '关系图谱',
+          meta: `${isBookScope ? '作品视角' : '世界视角'} · ${activeRelationCount} 条关系`
         })}
         <div className="relation-scope-switch">
           <button
@@ -394,21 +326,21 @@ function WorldSummaryCard({
             className={`scope-switch-btn ${!isBookScope ? 'scope-switch-btn-active' : ''}`}
             onClick={() => onRelationScopeChange?.('world')}
           >
-            世界级关联图
+            世界视角
           </button>
           <button
             type="button"
             className={`scope-switch-btn ${isBookScope ? 'scope-switch-btn-active' : ''}`}
             onClick={() => onRelationScopeChange?.('book')}
             disabled={!canSwitchBookGraph}
-            title={!canSwitchBookGraph ? '当前世界观库暂无作品，无法切换作品级图谱' : ''}
+            title={!canSwitchBookGraph ? '当前世界还没有作品，暂时不能切到作品视角' : ''}
           >
-            当前作品图谱
+            作品视角
           </button>
         </div>
         {isBookScope && canSwitchBookGraph ? (
           <div className="relation-book-picker">
-            <label className="field-label">目标作品</label>
+            <label className="field-label">查看作品</label>
             <select
               className="field-input"
               value={overviewBookGraphId}
@@ -456,18 +388,24 @@ function WorldSummaryCard({
           <EmptyStateCard
             compact
             icon="图"
-            title="当前范围暂无关系边"
-            description="可在设定编辑中添加关系后回来看图谱预览。"
+            title="还没有关系"
+            description="先在设定编辑里添加关系。"
           />
         )}
       </div>
 
       <div className="overview-block">
-        {renderOverviewTitle({ icon: '时', title: '时间轴（v0）' })}
-        <p className="helper-text timeline-hint">当前按时间倒序展示全部事件。</p>
-        {timelineRows.length > 0 ? (
+        <div className="overview-block-header">
+          {renderOverviewTitle({ icon: '动', title: '最近动态', meta: '这里只看最近变化，完整记录见时间轴' })}
+          {onGoToTimelineTab ? (
+            <button type="button" className="btn-inline btn-inline-secondary overview-block-action" onClick={onGoToTimelineTab}>
+              打开时间轴
+            </button>
+          ) : null}
+        </div>
+        {recentActivityRows.length > 0 ? (
           <div className="timeline-list">
-            {timelineRows.map((item) => (
+            {recentActivityRows.map((item) => (
               <div key={item.id} className="timeline-item">
                 <div className="timeline-item-main">
                   <span className={`tag ${item.type === '设定' ? 'tag-primary' : 'tag-secondary'}`}>
@@ -483,7 +421,7 @@ function WorldSummaryCard({
             ))}
           </div>
         ) : (
-          <EmptyStateCard compact icon="时" title="暂无可展示的时间轴事件" description="设定更新与灵感记录会自动汇入时间轴。" />
+          <EmptyStateCard compact icon="动" title="还没有最近动态" description="设定更新和灵感会出现在这里。" />
         )}
       </div>
     </div>

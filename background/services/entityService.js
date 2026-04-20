@@ -7,40 +7,100 @@ class EntityService {
     this.dataRepository = dataRepository;
   }
 
-  async saveEntityFromCapture(payload) {
-    const input = payload || {};
-    const selectedBooks = Array.isArray(input.selectedBooks) ? input.selectedBooks.map(safeName).filter(Boolean) : [];
-    const name = safeName(input.name);
-    const worldId = safeName(input.worldId);
+  async getAuthToken() {
+    const session = await this.dataRepository.getAuthSession();
+    return safeName(session?.accessToken);
+  }
 
-    if (!name) return { success: false, error: '实体名称不能为空' };
-    if (!worldId) return { success: false, error: '请先选择世界' };
-
-    const store = await this.dataRepository.readData();
-    const existingIndex = input.id ? store.entities.findIndex((item) => item.id === input.id) : -1;
-    const existing = existingIndex >= 0 ? store.entities[existingIndex] : null;
-
-    const entityQuota = await this.ensureEntityCreationQuota(store, existingIndex < 0);
-    if (!entityQuota.success) {
-      return entityQuota;
+  async request(path, config = {}) {
+    const token = await this.getAuthToken();
+    if (!token) {
+      return { success: false, status: 401, error: '请先登录账号后再进行采集' };
     }
 
-    const entity = this.buildEntityRecord(input, existing);
-
-    if (existingIndex >= 0) {
-      store.entities[existingIndex] = entity;
-    } else {
-      store.entities.unshift(entity);
-    }
-
-    const bookEntityUsages = this.updateBookEntityUsages(store.bookEntityUsages, entity.id, selectedBooks);
-
-    await this.dataRepository.writeData({
-      entities: store.entities,
-      bookEntityUsages
+    const response = await fetch(`http://localhost:3001/api${path}`, {
+      method: config.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(config.headers || {})
+      },
+      body: config.body ? JSON.stringify(config.body) : undefined
     });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.success === false) {
+      return {
+        success: false,
+        status: response.status,
+        error: payload?.error?.message || `请求失败（${response.status}）`
+      };
+    }
 
-    return { success: true, entity };
+    return {
+      success: true,
+      data: payload?.data
+    };
+  }
+
+  async saveEntityFromCapture(payload) {
+    try {
+      const input = payload || {};
+      const selectedBooks = Array.isArray(input.selectedBooks) ? input.selectedBooks.map(safeName).filter(Boolean) : [];
+      const name = safeName(input.name);
+      const worldId = safeName(input.worldId);
+
+      if (!name) return { success: false, error: '实体名称不能为空' };
+      if (!worldId) return { success: false, error: '请先选择世界' };
+
+      const createResult = await this.request('/entities', {
+        method: 'POST',
+        body: {
+          worldId,
+          name,
+          type: safeName(input.type) || 'other',
+          summary: String(input.summary || '').trim(),
+          tags: normalizeEntityRecordForStorage({ tags: input.tags || [] }).tags,
+          sourceUrl: String(input.sourceUrl || '').trim(),
+          sourceTitle: String(input.sourceTitle || '').trim()
+        }
+      });
+      if (!createResult.success || !createResult.data) {
+        return { success: false, error: createResult.error || '保存设定失败' };
+      }
+
+      const entity = createResult.data;
+      const entityId = safeName(entity?.id);
+      if (entityId && selectedBooks.length > 0) {
+        await Promise.all(
+          selectedBooks.map(async (bookId) => {
+            await this.request(`/entities/${encodeURIComponent(entityId)}/bind`, {
+              method: 'POST',
+              body: { bookId }
+            });
+          })
+        );
+      }
+
+      const captureText = String(input.selectedText || input.summary || name).trim();
+      if (captureText) {
+        await this.request('/captures', {
+          method: 'POST',
+          body: {
+            text: captureText,
+            sourceUrl: String(input.sourceUrl || '').trim(),
+            sourceTitle: String(input.sourceTitle || '').trim()
+          }
+        });
+      }
+
+      return {
+        success: true,
+        entity
+      };
+    } catch (error) {
+      console.error('[EntityService] saveEntityFromCapture error:', error);
+      return { success: false, error: error?.message || '保存失败' };
+    }
   }
 
   async saveEntityFromSidepanel(payload) {

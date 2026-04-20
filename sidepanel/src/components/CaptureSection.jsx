@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CAPTURE_STATUS } from '../constants/worldLink';
 import { getCaptureStatus } from '../utils/captureUtils';
 import EmptyStateCard from './EmptyStateCard';
@@ -52,6 +53,86 @@ function getUsageLevel(count) {
   return { label: `x${count}`, className: 'capture-badge capture-badge-cold' };
 }
 
+function ToolbarDropdown({
+  value,
+  options,
+  open,
+  onToggle,
+  onClose,
+  onChange,
+  ariaLabel
+}) {
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!rootRef.current) return;
+      if (rootRef.current.contains(event.target)) return;
+      onClose();
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  const currentOption = options.find((item) => item.value === value) || options[0] || null;
+
+  return (
+    <div className="toolbar-dropdown" ref={rootRef}>
+      <button
+        type="button"
+        className={`field-input toolbar-dropdown-trigger ${open ? 'is-open' : ''}`}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <span className="toolbar-dropdown-label">{currentOption?.label || '请选择'}</span>
+        <span className={`toolbar-dropdown-caret ${open ? 'is-open' : ''}`} aria-hidden>
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <div className="toolbar-dropdown-menu" role="listbox" aria-label={ariaLabel}>
+          {options.map((item) => {
+            const selected = item.value === value;
+            return (
+              <button
+                key={item.value}
+                type="button"
+                className={`toolbar-dropdown-option ${selected ? 'is-selected' : ''}`}
+                role="option"
+                aria-selected={selected}
+                onClick={() => {
+                  onChange(item.value);
+                  onClose();
+                }}
+              >
+                <span className="toolbar-dropdown-option-label">{item.label}</span>
+                {selected ? <span className="toolbar-dropdown-check">✓</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CaptureSection({
   capturedList,
   highlightedCaptureId,
@@ -70,51 +151,63 @@ function CaptureSection({
   onGoToEntityTab,
   totalCaptureCount
 }) {
+  const [openFilterMenu, setOpenFilterMenu] = useState(null);
+
   const hasActiveFilters =
     captureStatusFilter !== 'all' || captureSourceFilter !== 'all' || captureTimeFilter !== 'all';
+  const captureSourceOptionRows = useMemo(
+    () => [
+      { value: 'all', label: '全部来源' },
+      ...captureSourceOptions.map((source) => ({
+        value: source,
+        label: source
+      }))
+    ],
+    [captureSourceOptions]
+  );
 
   return (
     <div className="section-body">
       <div className="toolbar-wrap">
-        <select
-          className="field-input toolbar-select"
+        <ToolbarDropdown
           value={captureStatusFilter}
-          onChange={(event) => onCaptureStatusFilterChange(event.target.value)}
-        >
-          {captureStatusOptions.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+          options={captureStatusOptions}
+          open={openFilterMenu === 'status'}
+          onToggle={() => setOpenFilterMenu((prev) => (prev === 'status' ? null : 'status'))}
+          onClose={() => setOpenFilterMenu(null)}
+          onChange={onCaptureStatusFilterChange}
+          ariaLabel="按状态筛选灵感"
+        />
 
-        <select
-          className="field-input toolbar-select"
+        <ToolbarDropdown
           value={captureSourceFilter}
-          onChange={(event) => onCaptureSourceFilterChange(event.target.value)}
-        >
-          <option value="all">全部来源</option>
-          {captureSourceOptions.map((source) => (
-            <option key={source} value={source}>
-              {source}
-            </option>
-          ))}
-        </select>
+          options={captureSourceOptionRows}
+          open={openFilterMenu === 'source'}
+          onToggle={() => setOpenFilterMenu((prev) => (prev === 'source' ? null : 'source'))}
+          onClose={() => setOpenFilterMenu(null)}
+          onChange={onCaptureSourceFilterChange}
+          ariaLabel="按来源筛选灵感"
+        />
 
-        <select
-          className="field-input toolbar-select"
+        <ToolbarDropdown
           value={captureTimeFilter}
-          onChange={(event) => onCaptureTimeFilterChange(event.target.value)}
-        >
-          {captureTimeOptions.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+          options={captureTimeOptions}
+          open={openFilterMenu === 'time'}
+          onToggle={() => setOpenFilterMenu((prev) => (prev === 'time' ? null : 'time'))}
+          onClose={() => setOpenFilterMenu(null)}
+          onChange={onCaptureTimeFilterChange}
+          ariaLabel="按时间筛选灵感"
+        />
 
         {hasActiveFilters ? (
-          <button type="button" className="btn-secondary" onClick={onClearCaptureFilters}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              onClearCaptureFilters();
+              setOpenFilterMenu(null);
+            }}
+          >
             清空筛选
           </button>
         ) : null}
@@ -127,9 +220,9 @@ function CaptureSection({
             const status = getCaptureStatus(item);
             return (
               <div
-                key={item.timestamp + item.text}
+                key={item.id || item.timestamp + item.text}
                 className={`capture-card ${
-                  highlightedCaptureId === item.text || highlightedCaptureId === '__refresh_all__'
+                  highlightedCaptureId === item.id || highlightedCaptureId === '__refresh_all__'
                     ? 'capture-card-active'
                     : ''
                 }`}
@@ -138,6 +231,9 @@ function CaptureSection({
                   <div className="capture-card-content">
                     <div className="capture-card-title-row">
                       <p className="capture-card-text">{truncateText(item.text, 72)}</p>
+                    </div>
+
+                    <div className="capture-card-badges">
                       <span className={getCaptureStatusClassName(status)}>{getCaptureStatusLabel(status)}</span>
                       {item.count > 1 ? <span className={usage.className}>{usage.label}</span> : null}
                       {item.isPinned ? <span className="capture-badge capture-badge-pin">置顶</span> : null}
@@ -164,7 +260,14 @@ function CaptureSection({
                       <div className="capture-card-actions">
                         <button
                           type="button"
-                          className="btn-secondary btn-mini"
+                          onClick={() => onCreateFromCapture(item)}
+                          className="btn-primary btn-mini capture-card-action-primary"
+                        >
+                          转成设定
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary btn-mini capture-card-action-secondary"
                           disabled={status === CAPTURE_STATUS.INBOX}
                           onClick={() => onMarkCaptureStatus(item, CAPTURE_STATUS.INBOX)}
                         >
@@ -172,14 +275,11 @@ function CaptureSection({
                         </button>
                         <button
                           type="button"
-                          className="btn-secondary btn-mini"
+                          className="btn-secondary btn-mini capture-card-action-secondary"
                           disabled={status === CAPTURE_STATUS.ORGANIZED}
                           onClick={() => onMarkCaptureStatus(item, CAPTURE_STATUS.ORGANIZED)}
                         >
                           标记已整理
-                        </button>
-                        <button type="button" onClick={() => onCreateFromCapture(item)} className="btn-primary btn-mini">
-                          转成设定
                         </button>
                       </div>
                     </div>
@@ -191,22 +291,22 @@ function CaptureSection({
         ) : (
           <EmptyStateCard
             icon={hasActiveFilters && totalCaptureCount > 0 ? '筛' : '灵'}
-            title={hasActiveFilters && totalCaptureCount > 0 ? '筛选后暂无结果' : '还没有灵感记录'}
+            title={hasActiveFilters && totalCaptureCount > 0 ? '没有匹配灵感' : '还没有灵感'}
             description={
               hasActiveFilters && totalCaptureCount > 0
-                ? '当前筛选条件下没有灵感记录，试试清空筛选。'
-                : '在网页选中文字后，右键点击“存入 World-Link”即可开始收集灵感。'
+                ? '换个条件，或清空筛选。'
+                : '网页划词后，右键存入即可。'
             }
             actions={
               hasActiveFilters && totalCaptureCount > 0
                 ? [{ label: '清空筛选', onClick: onClearCaptureFilters }]
-                : [{ label: '去设定库手动新建', onClick: onGoToEntityTab }]
+                : [{ label: '去设定库新建', onClick: onGoToEntityTab }]
             }
           />
         )}
       </div>
 
-      {capturedList.length > 0 ? <p className="helper-text text-center">共收集 {capturedList.length} 条灵感</p> : null}
+      {capturedList.length > 0 ? <p className="helper-text text-center">共 {capturedList.length} 条灵感</p> : null}
     </div>
   );
 }

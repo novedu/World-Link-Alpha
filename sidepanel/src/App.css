@@ -1,40 +1,43 @@
 /* 应用主容器 */
 .app-shell {
-  background-color: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #1e293b;
+  background-color: var(--bg-page);
+  font-family: inherit;
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
 /* 订阅状态样式 */
 .subscription-status {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
   text-align: center;
+  border: 1px solid transparent;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  box-shadow: var(--shadow-xs);
+  overflow-wrap: anywhere;
 }
 
 .subscription-expired {
-  background-color: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background-color: rgba(254, 242, 242, 0.96);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.18);
 }
 
 .subscription-warning {
-  background-color: #fef3c7;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  background-color: rgba(255, 251, 235, 0.96);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.18);
 }
 
 .subscription-info {
-  background-color: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
-}
-
-.account-section {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  background-color: rgba(239, 246, 255, 0.96);
+  color: var(--primary);
+  border-color: rgba(37, 99, 235, 0.16);
 }

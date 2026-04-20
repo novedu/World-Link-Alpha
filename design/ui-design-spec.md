@@ -1,10 +1,11 @@
 # UI Design Spec: World-Link Alpha
 
 - Design Source: StyleKit 风格库 + World-Link 产品约束
-- Design Version: v1.14
-- Last Synced: 2026-04-16
+- Design Version: v1.21
+- Last Synced: 2026-04-19
 
 > 风格决策基线见：`design/style-decision-v1.md`  
+> 执行清单见：`design/style-execution-checklist-v1.md`  
 > 代码 token 文件：`sidepanel/src/styles/stylekit-theme-v1.css`
 
 ## 1. Design Positioning
@@ -27,12 +28,24 @@ World-Link Alpha 的视觉定位不是“展示型创意页面”，而是：
 - 微弱但精致的动效
 - 高信息密度但不拥挤
 
+风格执行上统一采用：
+
+- `Corporate Clean` 作为主工作区底盘
+- `Notion-style` 只用于说明文本、空状态与帮助块的可读性增强
+- `Stripe-style` 仅限未来营销域，不进入 Sidepanel 主流程
+
 ## 1.2 适用场景
 
 - 浏览器 Sidepanel
 - 宽度波动大，通常在 `320px–520px`
 - 用户会高频打开 / 关闭
 - 以列表、表单、筛选、快捷操作为主
+
+因此必须遵守 `Sidepanel First`：
+
+- 先保证 `320–400px` 的可读性与操作效率
+- 再在更宽空间里做局部层级增强
+- 不把当前产品做成“缩小版后台”
 
 ## 1.3 当前视觉判断
 
@@ -45,6 +58,7 @@ World-Link Alpha 的视觉定位不是“展示型创意页面”，而是：
   - 横向滚动绝对禁止
   - 字体与视觉层级再统一
   - 网页采集弹窗与 Sidepanel 的品牌语言统一
+  - Loading / Empty / Error 与主风格完全对齐
 
 ## 1.4 术语清晰化（文案约束）
 
@@ -79,8 +93,9 @@ flowchart TD
   C --> D["Active Task Card"]
   D --> E["Entities"]
   D --> F["Captures"]
-  D --> G["Overview"]
-  A --> H["Account Modal (On Demand)"]
+  D --> G["Timeline"]
+  D --> H["Overview"]
+  A --> I["Account Modal (On Demand)"]
 ```
 
 ## 2.2 每个区域的作用
@@ -90,10 +105,18 @@ flowchart TD
 - 右上角提供账户入口（用户名 / 套餐 / 登录状态）
 - 账户入口点击后打开账号与同步弹窗
 - Header 采用紧凑工具栏样式（单行主标题 + 单行副标题），禁止多行大标题占用首屏
+- 未登录时账户状态使用 `访客`，不再使用会误导能力预期的“本地”
+- 访客首屏隐藏刷新按钮，避免在尚未进入工作区时暴露无意义系统动作
+- Header 副标题不再复述 `当前范围`；上下文解释统一交给 `Global Context Card`
+- 访客首屏采用更轻的 Header 变体：更短副标题、更弱阴影、更扁平账户入口
+- 访客账户入口优先使用单行紧凑状态，不再在 Header 内堆叠第二张“大卡片”
+- 访客 Header 应优先收敛为单行工具条，避免品牌区和状态区形成上下双层
+- 访客状态入口文案收敛为 `访客 / 登录同步`，避免重复出现未登录、未同步、去登录等多组近义词
 
 ### Global Context Card
 - 设置 `世界观库 / 当前作品`
 - 是所有任务的上文，不属于任一 Tab
+- 仅在用户进入正常工作区后显示；访客首屏由开始使用引导卡替代
 
 ### Primary Tab Bar
 - 一级任务切换
@@ -101,15 +124,16 @@ flowchart TD
 
 ### Active Task Card
 - 当前真实工作区
-- 当前只切换 `设定库 / 灵感箱 / 总览`
-- 概览态优先呈现“跨世界快览 → 当前世界摘要 → 图谱/时间轴”
+- 当前切换 `设定库 / 灵感箱 / 时间轴 / 总览`
+- `总览` 优先呈现“跨世界快览 → 当前世界摘要 → 关系图谱 → 最近动态入口”
+- `时间轴` 作为独立一级任务承接完整事件浏览，避免总览页继续膨胀
 
 ## 2.3 信息流设计
 
 用户在 Sidepanel 的标准操作路径应为：
 
 1. 先确认上下文（世界观库 / 当前作品）
-2. 再切换任务（设定库 / 灵感箱 / 总览）
+2. 再切换任务（设定库 / 灵感箱 / 时间轴 / 总览）
 3. 最后在当前任务区完成搜索 / 整理 / 编辑
 
 也就是：
@@ -117,6 +141,30 @@ flowchart TD
 ```text
 Context First → Task Second → Action Third
 ```
+
+## 2.4 首屏状态优先级
+
+Sidepanel 首屏必须按以下顺序判断状态，禁止把不同性质的状态混成同一个红色报错：
+
+1. `首次加载中`
+   - 仅在“还没有任何工作区数据”时显示全局 loading
+2. `未登录`
+   - 进入 `开始使用` 引导态
+   - 展示 `登录账号 / 注册账号`
+   - 不展示页面级错误态
+   - 不展示访客当前无法操作的世界/作品选择区
+3. `已登录但无数据`
+   - 正常进入工作区
+   - 由 `当前范围` 承接创建首个世界观库的空状态
+4. `真实请求失败`
+   - 无存量数据时显示阻断型错误卡
+   - 有存量数据时优先保留当前工作区，仅在顶部提示刷新失败
+
+状态语义必须严格区分：
+
+- `未登录 = 引导态`
+- `无数据 = 空态`
+- `请求异常 = 错误态`
 
 ---
 
@@ -161,6 +209,7 @@ Context First → Task Second → Action Third
 
 ### `BrandHeader`
 - 展示品牌标识、产品名、简短说明
+- 必须保持紧凑工具栏感，而不是演化成品牌横幅
 
 ### `AccountModal`
 - 操作区分为两层：系统动作（刷新套餐/迁移）与账号动作（登录/升级/退出）
@@ -169,11 +218,14 @@ Context First → Task Second → Action Third
 ### `GlobalContextCard`
 - 负责世界观库与当前作品的选择
 - 字段级操作包括 `+ 新建世界观`、`+ 新建作品`
+- 不承担“未登录”提示；未登录提示必须在它之前完成分流
 
 ### `PrimaryTabBar`
 - 负责一级任务切换
 - `灵感箱` 可显示数量徽标
+- `时间轴` 是独立一级页，不再作为总览里的完整内容块
 - 支持轻量图标与 `99+` 徽标收敛，保证窄栏可读性
+- active 态优先表达“当前工作模式”，而不是装饰性高亮
 
 ### `EntityToolbar`
 - 承担搜索、类型过滤、后续标签过滤与导出入口
@@ -186,6 +238,10 @@ Context First → Task Second → Action Third
 - 统一空状态视觉（图标徽记 + 标题 + 描述 + CTA）
 - 适用于设定页与灵感页的无数据/无结果场景
 - 支持 `compact` 形态用于概览/图谱区，兼顾信息密度与层级一致性
+- 说明区允许借用 `Notion-style` 的文本节奏，但 CTA 仍保持工具型清晰结构
+- 访客首屏不再直接复用通用 `EmptyState` 结构，而是使用单主卡 onboarding 版式：标题、简述、收益块、主 CTA 一次表达完成
+- 访客 onboarding 采用 `Compact Workspace`：双按钮并列 CTA + 一个微型工作区预览块，优先展示登录后的产品结构，而不是并列功能卡片
+- 微型工作区预览只允许使用固定示意文案，例如 `世界观库 / 示例世界观`、`当前作品 / 示例作品`、`设定与灵感 / 角色 · 地点 · 片段`
 
 ### `EntityEditor`
 - 展示当前设定的结构化表单
@@ -220,8 +276,9 @@ Context First → Task Second → Action Third
 ### `MetricsCard`
 - 用于概览中的轻量统计
 
-### `TimelineBlock`
-- 承担概览页时间轴展示（设定更新 + 灵感记录）
+### `TimelineSection`
+- 承担独立时间轴 Tab 的事件浏览、筛选与管理
+- 总览页只保留“最近动态”摘要，不复制完整时间轴工作流
 
 ### `CrossWorldQuickList`
 - 承担概览页跨世界快速浏览与跳转
@@ -238,6 +295,7 @@ Sidepanel Shell
 └── TaskCard
     ├── EntityToolbar + EntityCard + EntityEditor
     ├── CaptureCard list
+    ├── TimelineSection
     └── MetricsCard + SummaryCard
 ```
 
@@ -284,6 +342,7 @@ Sidepanel Shell
   - 重点链接
 - 不使用大面积高饱和渐变
 - 不引入 AI 感紫粉色渐变
+- 工作区禁用重渐变卡片与重投影
 
 ## 4.3 Typography
 
@@ -337,6 +396,7 @@ Sidepanel Shell
 ### 阴影
 - 默认卡片：`0 1px 2px rgba(15,23,42,0.06)`
 - Hover 卡片：`0 4px 12px rgba(15,23,42,0.10)`
+- 禁止 `shadow-xl / shadow-2xl` 级别的厚重阴影进入主工作区
 
 ### 边框
 - 默认统一使用 `1px solid var(--border-default)`
@@ -348,6 +408,7 @@ Sidepanel Shell
 ### Hover
 - 只改变颜色、阴影、边框
 - 不做 `scale`，避免布局跳动
+- 允许轻微上浮，但幅度不超过 `1px`
 
 ### Duration
 - 标准过渡：`120ms–180ms`
@@ -358,6 +419,7 @@ Sidepanel Shell
 ### Loading
 - 用骨架或按钮 loading
 - 不使用大面积闪烁动画
+- 优先局部反馈，避免阻塞整个窄栏工作流
 
 ---
 
@@ -404,10 +466,15 @@ Sidepanel Shell
 ### 跨世界快览交互（新增）
 - 默认按“关系数 > 设定数 > 作品数”排序展示前 6 个世界
 - 支持关键词搜索与排序器联动，结果实时刷新
-- 支持按活跃度分组展示（高/中/低活跃）
+- 分组视图只支持按活跃度展示（高/中/低活跃），避免展示未落地的伪分类
 - 点击“切换”按钮后，更新全局世界上下文并切到概览 Tab
 - 当前世界按钮禁用并显示“当前”，避免误触发重复刷新
 - 列表项内容必须支持换行，保证 `320–400px` 下无横向滚动
+
+### 总览与时间轴分工（新增）
+- 总览只保留“最近动态”摘要，用于快速感知变化
+- 完整事件流、筛选与新增事件统一进入 `时间轴` Tab
+- 总览中的跳转动作必须直接带用户进入时间轴，而不是在当前页继续堆叠更多信息
 
 ### 书稿关系推断交互（新增）
 - 解析结果分为两段：`候选设定` 与 `关系推断`
@@ -500,6 +567,7 @@ World-Link Alpha 不是“只为 320–400px 设计”，而是：
 - 整体单列
 - 工具栏换行
 - 列表与编辑区上下堆叠
+- Header 右侧动作允许纵向堆叠，优先保证账户入口和刷新动作不挤压标题
 - `<=360px` 时 Header 自动切为双行（品牌信息上方、账号入口下方）
 
 ### Standard：401–520px
@@ -613,22 +681,26 @@ World-Link Alpha 不是“只为 320–400px 设计”，而是：
 ## 10. Code Mapping
 
 ### 当前文件映射
+- `sidepanel/src/AppContainer.jsx`
 - `sidepanel/src/App.jsx`
 - `sidepanel/src/components/PrimaryTabBar.jsx`
 - `sidepanel/src/components/WorldBookSection.jsx`
-- `sidepanel/src/components/EntitySection.jsx`
+- `sidepanel/src/components/EntitySection/index.jsx`
 - `sidepanel/src/components/CaptureSection.jsx`
+- `sidepanel/src/components/TimelineSection.jsx`
 - `sidepanel/src/components/WorldSummaryCard.jsx`
 - `sidepanel/src/components/RelationGraphPreviewCard.jsx`
 - `sidepanel/src/index.css`
 - `sidepanel/src/styles/stylekit-theme-v1.css`
 
 ### 设计职责映射
+- `AppContainer.jsx`：状态编排与数据流衔接
 - `App.jsx`：信息架构与壳层
 - `WorldBookSection.jsx`：全局上下文体验
 - `PrimaryTabBar.jsx`：一级任务切换
-- `EntitySection.jsx`：核心生产力体验
+- `EntitySection/index.jsx`：核心生产力体验
 - `CaptureSection.jsx`：素材收件箱体验
-- `WorldSummaryCard.jsx`：摘要表达
+- `TimelineSection.jsx`：完整事件流浏览
+- `WorldSummaryCard.jsx`：摘要表达与总览跳转
 - `RelationGraphPreviewCard.jsx`：关系图谱交互预览
 - `index.css`：design token 与基础样式系统

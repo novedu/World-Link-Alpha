@@ -1,75 +1,160 @@
-/* global chrome */
-
 import { useEffect, useState } from 'react';
-import {
-  createDefaultRuntimeConfig,
-  createDefaultRuntimeContext,
-  formatRuntimeError,
-  normalizeRuntimeConfig,
-  normalizeRuntimeContext,
-  sendRuntimeMessage
-} from '../services/runtimeApi';
+import { createDefaultRuntimeConfig, createDefaultRuntimeContext } from '../services/runtimeApi';
+import { authService } from '../services/auth.service';
+import { entitlementService } from '../services/entitlement.service';
+import { getToken } from '../lib/http/token';
 
-export function useRuntimeContext({ onUiMessage }) {
-  const [runtimeContext, setRuntimeContext] = useState(() => createDefaultRuntimeContext());
+function buildUnauthedRuntimeContext() {
+  const base = createDefaultRuntimeContext();
+  return {
+    ...base,
+    repositoryMode: 'cloud',
+    cloudEnabled: true,
+    runtimeConfig: {
+      ...createDefaultRuntimeConfig(),
+      repositoryMode: 'cloud'
+    },
+    entitlements: {
+      plan: 'free',
+      features: {
+        exportMarkdown: false,
+        exportJson: false
+      },
+      limits: {
+        maxWorlds: 0,
+        maxEntities: 0,
+        maxCapturesPerDay: 0
+      }
+    },
+    usage: {
+      captureCreate: { used: 0, limit: 0 },
+      exportMarkdown: { used: 0, limit: 0 },
+      exportJson: { used: 0, limit: 0 }
+    },
+    cloudDiagnostics: null
+  };
+}
+
+function mapEntitlementToRuntimeContext(snapshot) {
+  const limits = snapshot?.limits || {};
+  const usage = snapshot?.usage || {};
+  const exportsUsage = snapshot?.exports || {};
+  const canExportMarkdown =
+    typeof snapshot?.features?.canExportMarkdown === 'boolean'
+      ? snapshot.features.canExportMarkdown
+      : snapshot?.features?.canExport !== false;
+  const canExportJson = Boolean(snapshot?.features?.canExportJson);
+  const canUseAI = Boolean(snapshot?.features?.canUseAI);
+
+  return {
+    repositoryMode: 'cloud',
+    cloudEnabled: true,
+    runtimeConfig: {
+      ...createDefaultRuntimeConfig(),
+      repositoryMode: 'cloud'
+    },
+    entitlements: {
+      plan: snapshot?.plan || 'free',
+      features: {
+        exportMarkdown: canExportMarkdown,
+        exportJson: canExportJson,
+        aiAssist: canUseAI,
+        conflictCheck: canUseAI
+      },
+      limits: {
+        maxWorlds: Number(limits.maxWorlds ?? 0),
+        maxEntities: Number(limits.maxEntities ?? 0),
+        maxCapturesPerDay: Number(limits.maxCaptures ?? 0)
+      }
+    },
+    usage: {
+      captureCreate: {
+        used: Number(usage.captures ?? 0),
+        limit: Number(limits.maxCaptures ?? 0)
+      },
+      exportMarkdown: {
+        used: Number(exportsUsage.markdown ?? 0),
+        limit: null
+      },
+      exportJson: {
+        used: Number(exportsUsage.json ?? 0),
+        limit: null
+      }
+    },
+    cloudDiagnostics: null
+  };
+}
+
+export function useRuntimeContext({ onUiMessage, onAuthStateChange }) {
+  const [runtimeContext, setRuntimeContext] = useState(() => buildUnauthedRuntimeContext());
   const [authSession, setAuthSession] = useState(null);
-  const [runtimeConfigDraft, setRuntimeConfigDraft] = useState(() => createDefaultRuntimeConfig());
+  const [runtimeConfigDraft] = useState(() => ({
+    ...createDefaultRuntimeConfig(),
+    repositoryMode: 'cloud'
+  }));
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
   const [accountNotice, setAccountNotice] = useState(null);
 
-  const applyRuntimeContext = (result) => {
-    const nextContext = normalizeRuntimeContext(result);
-    setRuntimeContext(nextContext);
-    setRuntimeConfigDraft(normalizeRuntimeConfig(result?.runtimeConfig, nextContext.repositoryMode));
+  const refreshAuthSession = async () => {
+    const token = await getToken();
+    if (!token) {
+      setAuthSession(null);
+      return null;
+    }
+
+    try {
+      const result = await authService.getCurrentUser();
+      if (!result?.success || !result?.data) {
+        setAuthSession(null);
+        return null;
+      }
+      const nextSession = {
+        userId: result.data.id,
+        email: result.data.email,
+        plan: result.data.plan || 'free'
+      };
+      setAuthSession(nextSession);
+      return nextSession;
+    } catch {
+      setAuthSession(null);
+      return null;
+    }
   };
 
   const refreshRuntimeContext = async () => {
-    const result = await sendRuntimeMessage('GET_RUNTIME_CONTEXT');
-    if (!result?.success) return;
-    applyRuntimeContext(result);
+    const token = await getToken();
+    if (!token) {
+      setRuntimeContext(buildUnauthedRuntimeContext());
+      return;
+    }
+
+    try {
+      const result = await entitlementService.getEntitlements();
+      if (!result?.success || !result?.data) {
+        setRuntimeContext(buildUnauthedRuntimeContext());
+        return;
+      }
+      setRuntimeContext((prev) => ({
+        ...prev,
+        ...mapEntitlementToRuntimeContext(result.data)
+      }));
+    } catch (error) {
+      setRuntimeContext((prev) => ({
+        ...prev,
+        ...buildUnauthedRuntimeContext(),
+        cloudDiagnostics: {
+          lastError: {
+            message: String(error?.message || '套餐信息刷新失败'),
+            traceId: ''
+          }
+        }
+      }));
+    }
   };
 
   useEffect(() => {
-    sendRuntimeMessage('GET_RUNTIME_CONTEXT').then((result) => {
-      if (!result?.success) return;
-      applyRuntimeContext(result);
-    });
-
-    sendRuntimeMessage('GET_AUTH_SESSION').then((result) => {
-      if (!result?.success) return;
-      setAuthSession(result.session || null);
-    });
-
-    const handler = (changes, areaName) => {
-      if (areaName !== 'local') return;
-
-      if (changes.authSession) {
-        setAuthSession(changes.authSession.newValue || null);
-      }
-
-      if (changes.entitlements || changes.usageMeter) {
-        void sendRuntimeMessage('GET_RUNTIME_CONTEXT').then((result) => {
-          if (!result?.success) return;
-          applyRuntimeContext(result);
-        });
-      }
-
-      if (changes.runtimeConfig) {
-        const nextRuntimeConfig = normalizeRuntimeConfig(changes.runtimeConfig.newValue, 'local');
-        setRuntimeContext((prev) => ({
-          ...prev,
-          repositoryMode: nextRuntimeConfig.repositoryMode,
-          cloudEnabled: nextRuntimeConfig.repositoryMode === 'cloud',
-          runtimeConfig: nextRuntimeConfig
-        }));
-        setRuntimeConfigDraft(nextRuntimeConfig);
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handler);
-    return () => {
-      chrome.storage.onChanged.removeListener(handler);
-    };
+    void refreshAuthSession();
+    void refreshRuntimeContext();
   }, []);
 
   useEffect(() => {
@@ -81,61 +166,48 @@ export function useRuntimeContext({ onUiMessage }) {
   }, [accountNotice]);
 
   const handleSignOut = async () => {
-    const result = await sendRuntimeMessage('CLEAR_AUTH_SESSION');
-    if (!result?.success) {
-      onUiMessage?.(formatRuntimeError(result, '退出失败'), 'error');
-      return;
+    try {
+      await authService.logout();
+      setAuthSession(null);
+      await refreshRuntimeContext();
+      await onAuthStateChange?.();
+      onUiMessage?.('已退出登录', 'success');
+    } catch {
+      onUiMessage?.('退出失败，请稍后重试', 'error');
     }
-    setAuthSession(null);
-    await refreshRuntimeContext();
-    onUiMessage?.('已退出登录', 'success');
   };
 
   const handleUpgradeLocalPlan = async () => {
     if (!authSession?.email) return;
-    // 打开账号模态框，用户可以在其中管理订阅
-    // 这里可以通过回调函数通知父组件打开模态框
-    onUiMessage?.('请在账号设置中管理您的订阅', 'info');
+    onUiMessage?.('请在账号面板里管理套餐', 'info');
   };
 
   const handleRefreshEntitlements = async () => {
     if (isRefreshingEntitlements) return;
     setAccountNotice({
       type: 'info',
-      text: '正在刷新套餐...'
+      text: '正在刷新权益...'
     });
     setIsRefreshingEntitlements(true);
-    const result = await sendRuntimeMessage('REFRESH_ENTITLEMENTS');
-    setIsRefreshingEntitlements(false);
-    if (!result?.success) {
+    try {
+      await refreshAuthSession();
+      await refreshRuntimeContext();
+      setAccountNotice({
+        type: 'success',
+        text: '权益已刷新'
+      });
+    } catch {
       setAccountNotice({
         type: 'error',
-        text: '刷新失败，请稍后重试'
+        text: '刷新失败，请稍后再试'
       });
-      onUiMessage?.(formatRuntimeError(result, '刷新套餐信息失败'), 'error');
-      return;
+      onUiMessage?.('刷新权益失败', 'error');
+    } finally {
+      setIsRefreshingEntitlements(false);
     }
-    await refreshRuntimeContext();
-    setAccountNotice({
-      type: 'success',
-      text: '当前刷新完成'
-    });
   };
 
-  const ensureCloudRuntimeReady = async () => {
-    const payload = {
-      repositoryMode: 'cloud',
-      cloudApiBaseUrl: String(runtimeConfigDraft.cloudApiBaseUrl || '').trim(),
-      cloudTimeoutMs: Number(runtimeConfigDraft.cloudTimeoutMs || 12000)
-    };
-    const result = await sendRuntimeMessage('SET_RUNTIME_CONFIG', payload);
-    if (!result?.success) {
-      onUiMessage?.(formatRuntimeError(result, '初始化同步服务失败'), 'error');
-      return false;
-    }
-    await refreshRuntimeContext();
-    return true;
-  };
+  const ensureCloudRuntimeReady = async () => true;
 
   return {
     runtimeContext,

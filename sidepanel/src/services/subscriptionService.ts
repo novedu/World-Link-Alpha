@@ -1,5 +1,5 @@
 import { http } from '../lib/http/client';
-import type { SubscriptionPlanId, SubscriptionStatus as SharedSubscriptionStatus } from '../../../shared/types';
+import type { SubscriptionStatus as SharedSubscriptionStatus } from '../../../shared/types';
 
 // 订阅计划接口
 export interface SubscriptionPlan {
@@ -37,8 +37,8 @@ export const subscriptionService = {
   // 获取订阅计划
   getPlans: async (): Promise<SubscriptionPlan[]> => {
     try {
-      const response = await http.get<{ plans: SubscriptionPlan[] }>('/api/subscriptions/plans');
-      return response.data.plans;
+      const response = await http.get<SubscriptionPlan[]>('/subscriptions/plans');
+      return response.data;
     } catch (error) {
       console.error('Error getting subscription plans:', error);
       throw error;
@@ -48,7 +48,7 @@ export const subscriptionService = {
   // 获取用户订阅信息
   getSubscription: async (): Promise<Subscription | null> => {
     try {
-      const response = await http.get<{ data: Subscription }>('/api/subscriptions');
+      const response = await http.get<Subscription | null>('/subscriptions');
       return response.data;
     } catch (error) {
       console.error('Error getting user subscription:', error);
@@ -59,7 +59,7 @@ export const subscriptionService = {
   // 创建订阅
   createSubscription: async (planId: string, paymentMethod: string): Promise<Subscription> => {
     try {
-      const response = await http.post<{ data: Subscription }>('/api/subscriptions/create', {
+      const response = await http.post<Subscription>('/subscriptions/create', {
         plan: planId,
         paymentMethod
       });
@@ -73,7 +73,7 @@ export const subscriptionService = {
   // 取消订阅
   cancelSubscription: async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await http.post<{ data: { success: boolean; message: string } }>('/api/subscriptions/cancel');
+      const response = await http.post<{ success: boolean; message: string }>('/subscriptions/cancel');
       return response.data;
     } catch (error) {
       console.error('Error canceling subscription:', error);
@@ -84,7 +84,7 @@ export const subscriptionService = {
   // 续费订阅
   renewSubscription: async (paymentMethod: string): Promise<Subscription> => {
     try {
-      const response = await http.post<{ data: Subscription }>('/api/subscriptions/renew', {
+      const response = await http.post<Subscription>('/subscriptions/renew', {
         paymentMethod
       });
       return response.data;
@@ -106,9 +106,9 @@ export const subscriptionService = {
   // 获取订阅状态文本
   getStatusText: (status: SubscriptionStatus): string => {
     const statusMap: Record<SubscriptionStatus, string> = {
-      active: '活跃',
+      active: '生效中',
       canceled: '已取消',
-      expired: '已过期',
+      expired: '已到期',
       trialing: '试用中'
     };
     return statusMap[status] || '未知';

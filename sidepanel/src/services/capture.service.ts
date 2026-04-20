@@ -1,9 +1,11 @@
 import { http } from '../lib/http/client';
 
+type CaptureFilters = Record<string, string | number | boolean | undefined>;
+
 // 捕获服务
 class CaptureService {
   // 获取捕获记录列表
-  async getCaptures(filters: { [key: string]: any } = {}) {
+  async getCaptures(filters: CaptureFilters = {}) {
     return http.get('/captures', filters);
   }
 

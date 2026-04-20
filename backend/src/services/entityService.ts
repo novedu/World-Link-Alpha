@@ -99,11 +99,7 @@ export async function createEntity(userId: string, input: CreateEntityInput) {
     throw new Error('世界不存在');
   }
 
-  // 检查用户配额
-  const hasQuota = await entitlementService.checkEntityQuota(userId);
-  if (!hasQuota) {
-    throw new Error('已达到实体数量上限，请升级套餐');
-  }
+  await entitlementService.ensureEntityQuota(userId);
 
   return prisma.entity.create({
     data: {

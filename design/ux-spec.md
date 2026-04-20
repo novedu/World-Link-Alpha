@@ -1,5 +1,8 @@
 # UX Spec: World-Link Alpha
 
+- UX Version: v1.12
+- Last Synced: 2026-04-19
+
 ## Overview
 
 World-Link Alpha 是一个 **双入口、单资产模型** 的浏览器插件产品：
@@ -11,6 +14,7 @@ World-Link Alpha 是一个 **双入口、单资产模型** 的浏览器插件产
 本 UX Spec 以当前项目真实实现为基础，聚焦当前可执行逻辑与下一阶段扩展路径。
 
 > 对外术语统一：`世界观库`（World）、`当前作品`（Book）、`设定`（Entity）、`灵感记录`（CapturedItem）。
+> 当前主形态为 `Chrome Sidepanel`，因此所有交互优先服从窄栏高频工作流，而不是普通后台大屏逻辑。
 
 ---
 
@@ -33,20 +37,50 @@ Chrome Extension: World-Link Alpha
     ├── Primary tabs
     │   ├── 设定库
     │   ├── 灵感箱
+    │   ├── 时间轴
     │   └── 总览
     └── Active task area
         ├── 设定库: 搜索 / 过滤 / 列表 / 编辑
         ├── 灵感箱: 记录 / 回填设定
-        └── 总览: 指标 / 摘要
+        ├── 时间轴: 事件浏览 / 新增 / 删除
+        └── 总览: 指标 / 摘要 / 图谱 / 最近动态
 ```
 
 ### 1.2 IA Decisions
 
 1. `世界观库 / 当前作品` 是全局上下文，必须跨 Tab 常驻
-2. `设定库 / 灵感箱 / 总览` 是一级任务切换
+2. `设定库 / 灵感箱 / 时间轴 / 总览` 是一级任务切换
 3. `设定库` 是默认落点
 4. `灵感箱` 是素材收件箱，不是首页主内容
-5. `总览` 是低频页，承接摘要与未来图谱入口
+5. `时间轴` 承接完整事件流浏览与维护
+6. `总览` 是低频页，承接摘要、关系图谱与最近动态入口
+7. 首屏优先保证“先读懂上下文，再进入任务”，避免在窄栏里堆叠过厚品牌或说明区
+8. 状态反馈优先局部呈现，避免小面板被整页 loading 和错误块打断
+9. 未登录属于引导态，不属于错误态；首屏必须直接给出登录/注册入口，而不是显示“加载失败”
+
+### 1.2.1 Startup State Rules
+
+Sidepanel 启动阶段按以下顺序决策界面：
+
+1. 若正在首轮拉取且尚无任何工作区数据：
+   - 显示单一卡片 loading
+2. 若用户未登录或 token 缺失：
+   - 显示 `开始使用` 引导卡
+   - CTA 为 `登录账号 / 注册账号`
+   - Header 隐藏刷新按钮
+   - Header 使用更轻的品牌变体，不再强调“当前范围”
+   - Header 账户入口使用紧凑单行状态，避免二次卡片感
+   - 引导区使用单主卡结构，不再出现“卡片套空状态卡”的重复层级
+   - Header 优先保持单行工具条感，避免上下两层品牌与状态竞争注意力
+   - CTA 保持 `登录账号 / 注册账号` 双按钮并列；`<360px` 时自动纵向堆叠
+   - 收益区改为 1 个微型工作区预览块，展示 `世界观库 / 当前作品 / 设定与灵感` 的登录后结构
+   - 隐藏世界/作品选择与主工作区内容
+3. 若用户已登录且数据为空：
+   - 正常进入工作区
+   - 由 `当前范围` 卡承接首个世界观库创建引导
+4. 若请求真实失败：
+   - 无存量数据时显示阻断型错误卡
+   - 有存量数据时保留当前工作区，并用顶部消息条提示刷新失败
 
 ### 1.3 Information Structure Diagram
 
@@ -58,15 +92,18 @@ flowchart TD
   A --> C["Primary Tabs"]
   C --> D["Entities"]
   C --> E["Captures"]
-  C --> F["Overview"]
+  C --> F["Timeline"]
+  C --> G["Overview"]
   D --> D1["Search"]
   D --> D2["Type Filter"]
   D --> D3["Entity List"]
   D --> D4["Entity Editor"]
   E --> E1["Capture List"]
   E --> E2["Create From Capture"]
-  F --> F1["Metrics"]
-  F --> F2["Summary Card"]
+  F --> F1["Event List"]
+  F --> F2["Create Event"]
+  G --> G1["Metrics"]
+  G --> G2["Summary Card"]
 ```
 
 ---
@@ -84,6 +121,9 @@ flowchart TD
 
 4. **查看当前上下文总览**
    - 打开 Sidepanel → 选择世界观库 / 当前作品 → 切到总览 Tab → 查看摘要
+
+5. **查看完整时间轴**
+   - 打开 Sidepanel → 选择世界观库 / 当前作品 → 切到时间轴 Tab → 浏览或新增事件
 
 ---
 
@@ -151,6 +191,8 @@ flowchart TD
 - 选中当前作品后，要明确告诉用户当前是“本书视图”
 - 编辑区和当前选中设定必须强绑定，不允许出现错位编辑
 - 导出默认基于“当前筛选结果”，避免导出与用户视图不一致
+- 在 `320–400px` 下，搜索、筛选和编辑必须保持单列可完成，不依赖宽屏双栏
+- 未登录时不进入该流，优先回到首屏登录引导
 
 ---
 
@@ -211,6 +253,34 @@ flowchart TD
 - `总览` 只承载摘要，不承载复杂编辑
 - 卡片必须可扫读，避免把它做成第二个管理页
 - 总览统计以“当前世界 / 当前书上下文”为准，不受搜索词干扰
+- 总览页的强调方式应依赖层级与顺序，不依赖大面积视觉装饰
+- 总览里的“最近动态”只展示少量摘要，完整事件浏览统一跳转到时间轴 Tab
+
+---
+
+### Flow 5: 查看时间轴
+
+**Trigger**
+- 用户需要查看完整事件历史、按时间理解变化，或手动维护时间事件
+
+**User Goal**
+- 在不离开当前上下文的前提下，集中浏览和管理时间事件
+
+```text
+[打开 Sidepanel]
+    ↓
+[选择世界 / 书]
+    ↓
+[切换到时间轴 Tab]
+    ↓
+[浏览事件流 / 新增事件 / 删除事件]
+```
+
+**UX Requirements**
+- 时间轴是独立一级页，不和总览争抢信息空间
+- 时间、标题、事件类型必须可扫读
+- 空状态要明确告诉用户可手动新增事件
+- 与当前上下文强绑定，切换世界或作品后内容即时刷新
 
 ---
 
@@ -265,7 +335,7 @@ flowchart TD
 │ Primary Tabs                  │
 ├───────────────────────────────┤
 │ Active Task Area              │
-│ 设定 / 灵感 / 总览            │
+│ 设定 / 灵感 / 时间轴 / 总览   │
 └───────────────────────────────┘
 ```
 
@@ -364,12 +434,33 @@ flowchart TD
 **Core Components**
 - 指标卡片
 - 世界摘要
-- 未来扩展挂载位
+- 关系图谱
+- 最近动态摘要
+- 跳转到时间轴入口
 
 **States**
 - 未选择世界
 - 已选择世界但暂无摘要
 - 正常摘要
+
+---
+
+### Screen F: 时间轴 Tab
+
+**Purpose**
+- 提供完整事件流的浏览与维护界面
+
+**Core Components**
+- 时间轴事件列表
+- 事件新增入口
+- 删除操作
+- 空状态提示
+
+**States**
+- 未选择世界
+- 空时间轴
+- 正常列表
+- 写入中 / 删除中
 
 ---
 
@@ -381,7 +472,7 @@ flowchart TD
 - 一级任务切换
 
 **Rules**
-- 固定 3 个 tab
+- 固定 4 个 tab
 - 标签必须短
 - 当前态与默认态对比清晰
 - `灵感` 可带数量徽标
@@ -424,6 +515,17 @@ flowchart TD
 **Rules**
 - 不承担复杂操作
 - 指标卡必须可快速扫读
+- 最近动态只显示摘要，查看完整事件时必须引导到时间轴 Tab
+
+### `TimelineSection`
+
+**Purpose**
+- 承接完整事件浏览与维护
+
+**Rules**
+- 事件列表优先保证按时间扫读
+- 新增与删除操作必须带 loading 和错误反馈
+- 空状态提供明确下一步
 
 ---
 
@@ -474,6 +576,16 @@ flowchart TD
 - 预填表单
 - 保持当前世界 / 书上下文
 
+### Interaction 5: 从总览进入时间轴
+
+**Trigger**
+- 用户在总览中点击“查看时间轴”
+
+**Response**
+- 直接切到时间轴 Tab
+- 保留当前世界 / 书上下文
+- 时间轴按当前上下文刷新展示
+
 ---
 
 ## 7. Responsive Behavior
@@ -494,6 +606,7 @@ World-Link Alpha 不采用“固定 320–400px 设计思维”，而是采用�
 - 壳层单列
 - 工具栏与按钮允许换行
 - 设定列表与编辑区上下堆叠
+- Header 右侧动作允许纵向堆叠，避免标题与账户入口互相挤压
 
 **Standard：401–520px**
 - 壳层仍为单列
@@ -525,7 +638,7 @@ World-Link Alpha 不采用“固定 320–400px 设计思维”，而是采用�
 - 仍需补“按当前作品批量落边”的审核流，减少人工逐条处理成本
 
 ### Gap 3: 总览深度仍可增强
-- 已支持实时指标与最近动态
+- 已支持实时指标、关系图谱与最近动态摘要
 - 后续可增加趋势、按类型占比变化与异常提醒
 
 ### Gap 4: AI 能力语义质量仍需云端联调
@@ -544,11 +657,13 @@ World-Link Alpha 不采用“固定 320–400px 设计思维”，而是采用�
 ## 9. Code Alignment
 
 ### Current Structure
+- `sidepanel/src/AppContainer.jsx`
 - `sidepanel/src/App.jsx`
 - `sidepanel/src/components/WorldBookSection.jsx`
 - `sidepanel/src/components/PrimaryTabBar.jsx`
-- `sidepanel/src/components/EntitySection.jsx`
+- `sidepanel/src/components/EntitySection/index.jsx`
 - `sidepanel/src/components/CaptureSection.jsx`
+- `sidepanel/src/components/TimelineSection.jsx`
 - `sidepanel/src/components/WorldSummaryCard.jsx`
 - `background.js`
 - `content.js`

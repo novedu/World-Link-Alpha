@@ -1,6 +1,7 @@
 # Design 文档索引（当前有效）
 
 > 本目录只保留当前版本 UX/UI 规范，避免历史方案误导开发与评审。
+> 截至 `2026-04-19`，仓库内旧版 UI/UX 草案已清理完成，当前文件即唯一有效口径。
 
 ## 当前有效文档（Active）
 
@@ -10,6 +11,8 @@
   UI 视觉规范、组件规则、响应式与状态表现
 - `design/style-decision-v1.md`
   风格决策基线（Sidepanel + Web）与 token 落地策略
+- `design/style-execution-checklist-v1.md`
+  风格执行清单（Corporate Clean 主风格、辅助风格边界与本轮落地范围）
 
 ## 使用约定
 

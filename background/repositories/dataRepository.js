@@ -5,7 +5,7 @@ const { normalizeStoreShape, normalizeRuntimeConfig, createSeedWorlds, createSee
 
 class DataRepository {
   constructor() {
-    this.mode = 'local';
+    this.mode = 'cloud';
     this.cloudApiBaseUrl = '';
     this.cloudTimeoutMs = DEFAULT_RUNTIME_CONFIG.cloudTimeoutMs;
   }

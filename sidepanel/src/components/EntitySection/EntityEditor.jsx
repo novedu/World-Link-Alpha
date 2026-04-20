@@ -15,7 +15,6 @@ import {
   getConflictRiskKey,
   getConflictRiskMeta
 } from '../../utils/conflictUtils';
-import { aiService } from '../../services/ai.service';
 
 const EDITOR_TYPE_OPTIONS = [
   { value: 'character', label: '人物' },
@@ -35,14 +34,21 @@ export function EntityEditor({
   aiAssistProfile,
   conflictCheckMeta,
   baseTagOptions,
+  entitiesInWorld,
+  relationOptions,
+  relationLabels,
   onChangeField,
   onToggleEditorTag,
   onAiAssist,
   onCheckConflict,
   onAiAssistProfileChange,
   onSubmitAiFeedback,
+  onGenerateImage,
+  onRetryImage,
+  onApplyImageAsset,
   isAiAssisting,
   isCheckingConflict,
+  isGeneratingImage,
   isSubmittingAiFeedback,
   isSavingEntity,
   onSaveEntity,
@@ -59,11 +65,29 @@ export function EntityEditor({
   const suggestionTagOptions = baseTagOptions.filter((tag) => !editorTagSet.has(tag));
   const normalizedAssistProfile = normalizeAssistProfile(aiAssistProfile);
   const conflictHints = Array.isArray(editingEntity?.conflictHints) ? editingEntity.conflictHints : [];
-  const filteredConflictHints = useMemo(() => {
-    return [...conflictHints]
-      .sort((a, b) => Number(b?.confidence || 0) - Number(a?.confidence || 0))
-      .filter((hint) => conflictRiskFilter === 'all' || getConflictRiskKey(hint?.confidence) === conflictRiskFilter);
-  }, [conflictHints, conflictRiskFilter]);
+  const editorRelationCount = Array.isArray(editingEntity?.relations) ? editingEntity.relations.length : 0;
+  const editorTypeLabel = EDITOR_TYPE_OPTIONS.find((item) => item.value === editingEntity?.type)?.label || '其他';
+  const editorSummaryName = String(editingEntity?.name || '').trim() || '未命名设定';
+  const imageAssets = Array.isArray(editingEntity?.imageAssets) ? editingEntity.imageAssets : [];
+  const filteredConflictHints = [...conflictHints]
+    .sort((a, b) => Number(b?.confidence || 0) - Number(a?.confidence || 0))
+    .filter((hint) => conflictRiskFilter === 'all' || getConflictRiskKey(hint?.confidence) === conflictRiskFilter);
+  const usageBooks = (() => {
+    const rows = Array.isArray(editingEntity?.usages) ? editingEntity.usages : [];
+    const map = new Map();
+    rows.forEach((usage) => {
+      const bookId = String(usage?.book?.id || usage?.bookId || '').trim();
+      const bookTitle = String(usage?.book?.title || '').trim();
+      if (!bookId) return;
+      if (!map.has(bookId)) {
+        map.set(bookId, {
+          id: bookId,
+          title: bookTitle || '未命名作品'
+        });
+      }
+    });
+    return Array.from(map.values());
+  })();
 
   const updateTagInput = useCallback((value) => {
     setTagInputState({
@@ -91,7 +115,12 @@ export function EntityEditor({
     onToggleEditorTag(tag);
   }, [editorTagSet, onToggleEditorTag]);
 
-  const handleAddTagsFromInput = useCallback(() => {
+  const handleAddTagsFromInput = useCallback((rawTag) => {
+    const quickTag = String(rawTag || '').trim();
+    if (quickTag) {
+      appendEditorTag(quickTag);
+      return;
+    }
     const nextTags = parseTags(tagInput);
     if (nextTags.length === 0) return;
     nextTags.forEach((tag) => appendEditorTag(tag));
@@ -104,39 +133,6 @@ export function EntityEditor({
       handleAddTagsFromInput();
     }
   }, [handleAddTagsFromInput]);
-
-  const handleGenerateImage = async () => {
-    if (!editingEntity || !editingEntity.name) return;
-
-    try {
-      const entityTypeMap = {
-        character: 'character',
-        location: 'location',
-        item: 'item',
-        faction: 'character',
-        creature: 'character',
-        mineral: 'item',
-        event: 'location',
-        law: 'location',
-        other: 'character'
-      };
-
-      const entityType = entityTypeMap[editingEntity.type] || 'character';
-      const prompt = `A detailed ${entityType} named ${editingEntity.name}. ${editingEntity.summary || ''}`;
-
-      const response = await aiService.generateImage({
-        prompt,
-        entityType,
-        style: 'realistic'
-      });
-
-      if (response.success && response.data) {
-        onChangeField('imageUrl', response.data.imageUrl);
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-    }
-  };
 
   const conflictSummaryMeta = conflictCheckMeta?.conflictMeta || null;
   const conflictCalibrationMeta = conflictCheckMeta?.calibration || null;
@@ -152,149 +148,300 @@ export function EntityEditor({
   };
 
   const formatThresholdPercent = (value) => `${Math.round(Number(value || 0) * 100)}%`;
+  const formatAssetTime = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleString('zh-CN', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  };
 
   return (
     <div className="editor-panel">
-      <h3 className="editor-title">设定编辑</h3>
-      <div className="form-stack">
-        <div className="field-stack">
-          <label className="field-label">名称</label>
-          <input
-            className="field-input w-full"
-            value={editingEntity.name}
-            onChange={(event) => onChangeField('name', event.target.value)}
-          />
+      <div className="editor-shell-top">
+        <div>
+          <h3 className="editor-title">设定编辑</h3>
+          <p className="editor-shell-caption">补齐名称、标签和关系，方便检索。</p>
         </div>
-
-        <div className="field-stack">
-          <label className="field-label">类型</label>
-          <select
-            className="field-input w-full"
-            value={editingEntity.type}
-            onChange={(event) => onChangeField('type', event.target.value)}
-          >
-            {EDITOR_TYPE_OPTIONS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="field-stack">
-          <label className="field-label">简要描述</label>
-          <textarea
-            className="field-input w-full min-h-[96px]"
-            value={editingEntity.summary}
-            onChange={(event) => onChangeField('summary', event.target.value)}
-          />
-          {editingEntity.imageUrl && (
-            <div className="entity-image-preview">
-              <img src={editingEntity.imageUrl} alt={editingEntity.name} className="entity-image" />
+        <div className="editor-summary-strip">
+          <div className="editor-summary-main">
+            <div className="editor-summary-name-row">
+              <p className="editor-summary-name">{editorSummaryName}</p>
+              <span className="tag tag-secondary">{editorTypeLabel}</span>
             </div>
-          )}
-          <div className="editor-ai-actions">
-            <select
-              className="field-input editor-ai-select"
-              value={normalizedAssistProfile.style}
-              onChange={(event) =>
-                onAiAssistProfileChange?.({
-                  ...normalizedAssistProfile,
-                  style: event.target.value
-                })
-              }
-              title="文案风格"
-            >
-              {AI_ASSIST_STYLE_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  风格：{item.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="field-input editor-ai-select"
-              value={normalizedAssistProfile.targetLength}
-              onChange={(event) =>
-                onAiAssistProfileChange?.({
-                  ...normalizedAssistProfile,
-                  targetLength: event.target.value
-                })
-              }
-              title="输出长度"
-            >
-              {AI_ASSIST_LENGTH_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  长度：{item.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-inline btn-inline-secondary"
-              onClick={() => onAiAssist?.('summarize', normalizedAssistProfile)}
-              disabled={isAiAssisting}
-            >
-              {isAiAssisting ? '处理中...' : 'AI 总结'}
-            </button>
-            <button
-              type="button"
-              className="btn-inline btn-inline-secondary"
-              onClick={() => onAiAssist?.('expand', normalizedAssistProfile)}
-              disabled={isAiAssisting}
-            >
-              {isAiAssisting ? '处理中...' : 'AI 扩写'}
-            </button>
-            <button
-              type="button"
-              className="btn-inline btn-inline-secondary"
-              onClick={() => onCheckConflict?.()}
-              disabled={isCheckingConflict}
-            >
-              {isCheckingConflict ? '检测中...' : 'AI 冲突检查'}
-            </button>
-            <button
-              type="button"
-              className="btn-inline btn-inline-secondary"
-              onClick={() => handleGenerateImage()}
-              disabled={isAiAssisting}
-            >
-              {isAiAssisting ? '生成中...' : 'AI 生成图片'}
-            </button>
+            <p className="editor-summary-note">
+              {editingEntity.summary?.trim() || '先写一句摘要。'}
+            </p>
           </div>
-
-          <ConflictPanel
-            conflictHints={conflictHints}
-            filteredConflictHints={filteredConflictHints}
-            conflictRiskFilter={conflictRiskFilter}
-            onRiskFilterChange={setConflictRiskFilter}
-            conflictSummaryMeta={conflictSummaryMeta}
-            conflictCalibrationMeta={conflictCalibrationMeta}
-            conflictCheckMeta={conflictCheckMeta}
-            formatThresholdPercent={formatThresholdPercent}
-          />
-
-          <AiFeedbackRow
-            aiMeta={aiAssistMeta}
-            feedbackDecision={aiAssistFeedbackDecision}
-            isSubmitting={isSubmittingAiFeedback}
-            onSubmitFeedback={(type, decision) => onSubmitAiFeedback?.(type, decision)}
-            type="assist"
-            formatTime={formatTime}
-          />
-
-          {aiAssistFallbackHint ? <p className="helper-text ai-fallback-reason">{aiAssistFallbackHint}</p> : null}
-
-          <AiFeedbackRow
-            aiMeta={conflictCheckMeta}
-            feedbackDecision={conflictFeedbackDecision}
-            isSubmitting={isSubmittingAiFeedback}
-            onSubmitFeedback={(type, decision) => onSubmitAiFeedback?.(type, decision)}
-            type="conflict"
-            formatTime={formatTime}
-          />
-
-          {conflictFallbackHint ? <p className="helper-text ai-fallback-reason">{conflictFallbackHint}</p> : null}
+          <div className="editor-summary-tags">
+            <span className="editor-summary-pill">标签 {editorTags.length}</span>
+            <span className="editor-summary-pill">关系 {editorRelationCount}</span>
+            <span className="editor-summary-pill">{editingEntity.imageUrl ? '已配图' : '未配图'}</span>
+          </div>
         </div>
+      </div>
+      <div className="form-stack">
+        <section className="editor-section">
+          <div className="editor-section-header">
+            <div className="editor-section-copy">
+              <h4 className="editor-section-title">基础信息</h4>
+              <p className="editor-section-note">名称、类型和摘要会影响检索。</p>
+            </div>
+          </div>
+          <div className="editor-section-body editor-core-grid">
+            <div className="field-stack">
+              <label className="field-label">名称</label>
+              <input
+                className="field-input w-full"
+                value={editingEntity.name}
+                onChange={(event) => onChangeField('name', event.target.value)}
+              />
+            </div>
+
+            <div className="field-stack">
+              <label className="field-label">类型</label>
+              <select
+                className="field-input w-full"
+                value={editingEntity.type}
+                onChange={(event) => onChangeField('type', event.target.value)}
+              >
+                {EDITOR_TYPE_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field-stack editor-core-summary">
+              <label className="field-label">简要描述</label>
+              <textarea
+                className="field-input w-full min-h-[96px]"
+                value={editingEntity.summary}
+                onChange={(event) => onChangeField('summary', event.target.value)}
+              />
+              {editingEntity.imageUrl && (
+                <div className="entity-image-preview">
+                  <img src={editingEntity.imageUrl} alt={editingEntity.name} className="entity-image" />
+                </div>
+              )}
+              <div className="entity-image-assets">
+                <div className="entity-image-assets-header">
+                  <span className="editor-section-inline-note">配图资产 {imageAssets.length}</span>
+                  {editingEntity.pendingImageAsset ? <span className="tag tag-warning">待保存</span> : null}
+                </div>
+                {imageAssets.length > 0 ? (
+                  <div className="entity-image-asset-list">
+                    {imageAssets.slice(0, 4).map((asset) => (
+                      <div key={asset.id || asset.imageUrl} className="entity-image-asset-item">
+                        <button
+                          type="button"
+                          className="entity-image-asset-thumb"
+                          onClick={() => onApplyImageAsset?.(asset)}
+                          title="设为当前图片"
+                        >
+                          <img src={asset.imageUrl} alt="asset" className="entity-image-asset-thumb-img" />
+                        </button>
+                        <div className="entity-image-asset-main">
+                          <p className="entity-image-asset-meta">
+                            {asset.style || 'realistic'}
+                            {formatAssetTime(asset.generatedAt) ? ` · ${formatAssetTime(asset.generatedAt)}` : ''}
+                          </p>
+                          <p className="entity-image-asset-prompt">
+                            {asset.prompt || '自动生成提示词'}
+                          </p>
+                          <div className="entity-image-asset-actions">
+                            <button
+                              type="button"
+                              className="btn-inline btn-inline-secondary"
+                              onClick={() => onApplyImageAsset?.(asset)}
+                            >
+                              设为当前
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-inline btn-inline-secondary"
+                              onClick={() => onRetryImage?.(asset)}
+                              disabled={isGeneratingImage}
+                            >
+                              {isGeneratingImage ? '重试中...' : '重试生成'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="editor-section-inline-note">暂无历史配图，点击“AI 生成图片”即可创建。</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="editor-section">
+          <div className="editor-section-header">
+            <div className="editor-section-copy">
+              <h4 className="editor-section-title">来源与使用</h4>
+              <p className="editor-section-note">记录来源，查看这条设定已被哪些作品引用。</p>
+            </div>
+          </div>
+          <div className="editor-section-body editor-section-body-tight">
+            <div className="editor-source-grid">
+              <div className="field-stack">
+                <label className="field-label">来源标题</label>
+                <input
+                  className="field-input w-full"
+                  value={editingEntity.sourceTitle || ''}
+                  onChange={(event) => onChangeField('sourceTitle', event.target.value)}
+                  placeholder="例如：维基词条、历史资料、网页标题"
+                />
+              </div>
+              <div className="field-stack">
+                <label className="field-label">来源链接</label>
+                <input
+                  className="field-input w-full"
+                  value={editingEntity.sourceUrl || ''}
+                  onChange={(event) => onChangeField('sourceUrl', event.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+            {usageBooks.length > 0 ? (
+              <div className="editor-usage-wrap">
+                <p className="editor-section-inline-note">已被 {usageBooks.length} 个作品使用：</p>
+                <div className="editor-usage-list">
+                  {usageBooks.map((book) => (
+                    <span key={book.id} className="tag tag-success">
+                      {book.title}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="editor-section-inline-note">当前还没有被作品引用。</p>
+            )}
+          </div>
+        </section>
+
+        <section className="editor-section editor-section-emphasis">
+          <div className="editor-section-header">
+            <div className="editor-section-copy">
+              <h4 className="editor-section-title">AI 辅助</h4>
+              <p className="editor-section-note">先写摘要，再用 AI 扩写或查冲突。</p>
+            </div>
+          </div>
+          <p className="editor-section-inline-note">当前模式：{formatAssistProfile(normalizedAssistProfile)}</p>
+          <div className="editor-section-body">
+            <div className="editor-ai-actions">
+              <select
+                className="field-input editor-ai-select"
+                value={normalizedAssistProfile.style}
+                onChange={(event) =>
+                  onAiAssistProfileChange?.({
+                    ...normalizedAssistProfile,
+                    style: event.target.value
+                  })
+                }
+                title="文案风格"
+              >
+                {AI_ASSIST_STYLE_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    风格：{item.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="field-input editor-ai-select"
+                value={normalizedAssistProfile.targetLength}
+                onChange={(event) =>
+                  onAiAssistProfileChange?.({
+                    ...normalizedAssistProfile,
+                    targetLength: event.target.value
+                  })
+                }
+                title="输出长度"
+              >
+                {AI_ASSIST_LENGTH_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    长度：{item.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn-inline btn-inline-secondary"
+                onClick={() => onAiAssist?.('summarize', normalizedAssistProfile)}
+                disabled={isAiAssisting}
+              >
+                {isAiAssisting ? '处理中...' : 'AI 总结'}
+              </button>
+              <button
+                type="button"
+                className="btn-inline btn-inline-secondary"
+                onClick={() => onAiAssist?.('expand', normalizedAssistProfile)}
+                disabled={isAiAssisting}
+              >
+                {isAiAssisting ? '处理中...' : 'AI 扩写'}
+              </button>
+              <button
+                type="button"
+                className="btn-inline btn-inline-secondary"
+                onClick={() => onCheckConflict?.()}
+                disabled={isCheckingConflict}
+              >
+                {isCheckingConflict ? '检测中...' : 'AI 冲突检查'}
+              </button>
+              <button
+                type="button"
+                className="btn-inline btn-inline-secondary"
+                onClick={() => onGenerateImage?.()}
+                disabled={isGeneratingImage}
+              >
+                {isGeneratingImage ? '生成中...' : 'AI 生成图片'}
+              </button>
+            </div>
+
+            <ConflictPanel
+              conflictHints={conflictHints}
+              filteredConflictHints={filteredConflictHints}
+              conflictRiskFilter={conflictRiskFilter}
+              onRiskFilterChange={setConflictRiskFilter}
+              conflictSummaryMeta={conflictSummaryMeta}
+              conflictCalibrationMeta={conflictCalibrationMeta}
+              conflictCheckMeta={conflictCheckMeta}
+              formatThresholdPercent={formatThresholdPercent}
+            />
+
+            <AiFeedbackRow
+              aiMeta={aiAssistMeta}
+              feedbackDecision={aiAssistFeedbackDecision}
+              isSubmitting={isSubmittingAiFeedback}
+              onSubmitFeedback={(type, decision) => onSubmitAiFeedback?.(type, decision)}
+              type="assist"
+              formatTime={formatTime}
+            />
+
+            {aiAssistFallbackHint ? <p className="helper-text ai-fallback-reason">{aiAssistFallbackHint}</p> : null}
+
+            <AiFeedbackRow
+              aiMeta={conflictCheckMeta}
+              feedbackDecision={conflictFeedbackDecision}
+              isSubmitting={isSubmittingAiFeedback}
+              onSubmitFeedback={(type, decision) => onSubmitAiFeedback?.(type, decision)}
+              type="conflict"
+              formatTime={formatTime}
+            />
+
+            {conflictFallbackHint ? <p className="helper-text ai-fallback-reason">{conflictFallbackHint}</p> : null}
+          </div>
+        </section>
 
         <TagEditor
           editorTags={editorTags}
@@ -310,6 +457,10 @@ export function EntityEditor({
 
         <RelationEditor
           editingEntity={editingEntity}
+          entitiesInWorld={entitiesInWorld}
+          relationOptions={relationOptions}
+          relationLabels={relationLabels}
+          onChangeField={onChangeField}
         />
 
         <div className="editor-actions">
@@ -473,70 +624,84 @@ function TagEditor({
   onRemoveTag
 }) {
   return (
-    <div className="field-stack">
-      <label className="field-label">标签</label>
-      {editorTags.length > 0 ? (
-        <div className="editor-tag-list">
-          {editorTags.map((tag) => (
-            <span key={tag} className="editor-tag-pill">
-              <span className="editor-tag-text">{tag}</span>
-              <button
-                type="button"
-                className="editor-tag-remove"
-                onClick={() => onRemoveTag(tag)}
-                aria-label={`移除标签 ${tag}`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
+    <section className="editor-section">
+        <div className="editor-section-header">
+          <div className="editor-section-copy">
+            <h4 className="editor-section-title">标签管理</h4>
+            <p className="editor-section-note">标签越准，越好筛选。</p>
+          </div>
         </div>
-      ) : (
-        <p className="helper-text">暂无标签，可通过下方输入框或常用标签添加。</p>
-      )}
+      <div className="editor-section-body editor-section-body-tight">
+        <p className="editor-section-inline-note">
+          {editorTags.length > 0 ? `已选 ${editorTags.length} 个标签。` : '还没有标签，可先加几个。'}
+        </p>
+        {editorTags.length > 0 ? (
+          <div className="editor-tag-list">
+            {editorTags.map((tag) => (
+              <span key={tag} className="editor-tag-pill">
+                <span className="editor-tag-text">{tag}</span>
+                <button
+                  type="button"
+                  className="editor-tag-remove"
+                  onClick={() => onRemoveTag(tag)}
+                  aria-label={`移除标签 ${tag}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
 
-      <div className="editor-tag-input-row">
-        <input
-          className="field-input editor-tag-input"
-          value={tagInput}
-          onChange={(event) => onTagInputChange(event.target.value)}
-          onKeyDown={onTagInputKeyDown}
-          placeholder="输入标签，按 Enter 添加"
-          list={tagSuggestionId}
-        />
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onAddTags}
-          disabled={!tagInput.trim()}
-        >
-          添加
-        </button>
-      </div>
-
-      <datalist id={tagSuggestionId}>
-        {suggestionTagOptions.map((tag) => (
-          <option key={tag} value={tag} />
-        ))}
-      </datalist>
-
-      <div className="tag-filter-row">
-        {baseTagOptions.map((tag) => (
+        <div className="editor-tag-input-row">
+          <input
+            className="field-input editor-tag-input"
+            value={tagInput}
+            onChange={(event) => onTagInputChange(event.target.value)}
+            onKeyDown={onTagInputKeyDown}
+            placeholder="输入标签后按 Enter"
+            list={tagSuggestionId}
+          />
           <button
-            key={tag}
             type="button"
-            className="tag-chip"
-            onClick={() => onAddTags(tag)}
+            className="btn-secondary"
+            onClick={() => onAddTags()}
+            disabled={!tagInput.trim()}
           >
-            {tag}
+            添加
           </button>
-        ))}
+        </div>
+
+        <datalist id={tagSuggestionId}>
+          {suggestionTagOptions.map((tag) => (
+            <option key={tag} value={tag} />
+          ))}
+        </datalist>
+
+        {baseTagOptions.length > 0 ? (
+          <div className="tag-filter-row">
+            {baseTagOptions.map((tag) => {
+              const isSelected = editorTags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`tag-chip ${isSelected ? 'tag-chip-active' : ''}`}
+                  onClick={() => onAddTags(tag)}
+                  disabled={isSelected}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
-    </div>
+    </section>
   );
 }
 
-function RelationEditor({ editingEntity }) {
+function RelationEditor({ editingEntity, entitiesInWorld = [], relationOptions = [], relationLabels = {}, onChangeField }) {
   const [relationDraftState, setRelationDraftState] = useState({
     toEntityId: '',
     type: 'related_to',
@@ -544,8 +709,30 @@ function RelationEditor({ editingEntity }) {
   });
 
   const editorRelations = Array.isArray(editingEntity?.relations) ? editingEntity.relations : [];
-
-  const safeRelationOptions = [{ value: 'related_to', label: '关联' }];
+  const safeRelationOptions = useMemo(
+    () =>
+      Array.isArray(relationOptions) && relationOptions.length > 0
+        ? relationOptions
+        : [{ value: 'related_to', label: '关联' }],
+    [relationOptions]
+  );
+  const targetOptions = (Array.isArray(entitiesInWorld) ? entitiesInWorld : [])
+    .filter((entity) => String(entity?.id || '').trim() && String(entity?.id || '').trim() !== String(editingEntity?.id || '').trim())
+    .map((entity) => ({
+      id: String(entity.id || '').trim(),
+      name: String(entity.name || '').trim() || '未命名设定'
+    }));
+  const entityNameById = useMemo(
+    () =>
+      targetOptions.reduce((acc, item) => {
+        acc[item.id] = item.name;
+        return acc;
+      }, {}),
+    [targetOptions]
+  );
+  const activeRelationDraftType = safeRelationOptions.some((option) => option.value === relationDraftState.type)
+    ? relationDraftState.type
+    : safeRelationOptions[0].value;
 
   const updateRelationDraft = (field, value) => {
     setRelationDraftState((prev) => ({
@@ -555,73 +742,103 @@ function RelationEditor({ editingEntity }) {
   };
 
   const handleAddRelation = () => {
-    if (!editingEntity) return;
+    if (!editingEntity || !onChangeField) return;
     const toEntityId = String(relationDraftState.toEntityId || '').trim();
     if (!toEntityId || toEntityId === editingEntity.id) return;
-    const type = String(relationDraftState.type || 'related_to').trim() || 'related_to';
+    const type = String(activeRelationDraftType || 'related_to').trim() || 'related_to';
     const note = String(relationDraftState.note || '').trim();
     const existed = editorRelations.some((relation) => relation.toEntityId === toEntityId && relation.type === type);
     if (existed) return;
-    editingEntity.onChangeField?.('relations', [...editorRelations, { id: '', toEntityId, type, note }]);
+    onChangeField('relations', [...editorRelations, { id: '', toEntityId, type, note }]);
     setRelationDraftState({ toEntityId: '', type: 'related_to', note: '' });
   };
 
   const handleRemoveRelation = (index) => {
-    if (!editingEntity) return;
+    if (!editingEntity || !onChangeField) return;
     const next = editorRelations.filter((_, itemIndex) => itemIndex !== index);
-    editingEntity.onChangeField?.('relations', next);
+    onChangeField('relations', next);
   };
 
-  if (!editingEntity || !editingEntity.id) return null;
+  if (!editingEntity) return null;
 
   return (
-    <div className="field-stack">
-      <label className="field-label">关系</label>
-      {editorRelations.length > 0 ? (
-        <div className="relation-list">
-          {editorRelations.map((relation, index) => (
-            <div key={`${relation.toEntityId}-${relation.type}-${index}`} className="relation-item">
-              <span className="relation-text">
-                → {relation.toEntityId} ({safeRelationOptions.find((r) => r.value === relation.type)?.label || relation.type})
-              </span>
-              <button
-                type="button"
-                className="btn-inline btn-inline-secondary"
-                onClick={() => handleRemoveRelation(index)}
-              >
-                移除
-              </button>
-            </div>
-          ))}
+    <section className="editor-section">
+      <div className="editor-section-header">
+        <div className="editor-section-copy">
+          <h4 className="editor-section-title">关系管理</h4>
+          <p className="editor-section-note">关系补齐后，图谱会更清楚。</p>
         </div>
-      ) : null}
-      <div className="editor-relation-input-row">
-        <input
-          className="field-input"
-          value={relationDraftState.toEntityId}
-          onChange={(event) => updateRelationDraft('toEntityId', event.target.value)}
-          placeholder="目标设定名称"
-        />
-        <select
-          className="field-input"
-          value={relationDraftState.type}
-          onChange={(event) => updateRelationDraft('type', event.target.value)}
-        >
-          {safeRelationOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={handleAddRelation}
-          disabled={!relationDraftState.toEntityId.trim()}
-        >
-          添加关系
-        </button>
       </div>
-    </div>
+      <div className="editor-section-body editor-section-body-tight">
+        <p className="editor-section-inline-note">
+          {editorRelations.length > 0
+            ? `已建立 ${editorRelations.length} 条关系。`
+            : '还没有关系，可先补一条。'}
+        </p>
+        {editorRelations.length > 0 ? (
+          <div className="relation-list">
+            {editorRelations.map((relation, index) => {
+              const relationLabel = relationLabels[relation.type] || safeRelationOptions.find((item) => item.value === relation.type)?.label || relation.type;
+              return (
+                <div key={`${relation.toEntityId}-${relation.type}-${index}`} className="relation-item">
+                  <div className="relation-main">
+                    <span className="relation-target">{entityNameById[relation.toEntityId] || relation.toEntityId}</span>
+                    <span className="tag tag-secondary">{relationLabel}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-inline btn-inline-secondary"
+                    onClick={() => handleRemoveRelation(index)}
+                  >
+                    移除
+                  </button>
+                  {relation.note ? <p className="relation-note">备注：{relation.note}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+        <div className="editor-relation-input-row">
+          <select
+            className="field-input editor-relation-target"
+            value={relationDraftState.toEntityId}
+            onChange={(event) => updateRelationDraft('toEntityId', event.target.value)}
+          >
+            <option value="">选择目标设定</option>
+            {targetOptions.map((entity) => (
+              <option key={entity.id} value={entity.id}>
+                {entity.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="field-input editor-relation-type"
+            value={activeRelationDraftType}
+            onChange={(event) => updateRelationDraft('type', event.target.value)}
+          >
+            {safeRelationOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn-secondary editor-relation-submit"
+            onClick={handleAddRelation}
+            disabled={!relationDraftState.toEntityId.trim() || targetOptions.length === 0}
+          >
+            添加关系
+          </button>
+          <input
+            className="field-input editor-relation-note-input"
+            value={relationDraftState.note}
+            onChange={(event) => updateRelationDraft('note', event.target.value)}
+            placeholder="备注（可选）"
+          />
+        </div>
+        {targetOptions.length === 0 ? <p className="helper-text">当前世界还没有可关联的设定。</p> : null}
+      </div>
+    </section>
   );
 }

@@ -67,11 +67,7 @@ export async function getCaptureById(captureId: string, userId: string) {
 }
 
 export async function createCapture(input: CreateCaptureInput) {
-  // 检查用户配额
-  const hasQuota = await entitlementService.checkCaptureQuota(input.userId);
-  if (!hasQuota) {
-    throw new Error('已达到捕获记录数量上限，请升级套餐');
-  }
+  await entitlementService.ensureCaptureQuota(input.userId);
 
   return prisma.capture.create({
     data: {
