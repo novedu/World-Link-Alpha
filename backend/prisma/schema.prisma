@@ -83,6 +83,7 @@ model World {
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("worlds")
+  @@index([userId])
 }
 
 model Book {
@@ -117,6 +118,8 @@ model Entity {
   timelineEvents TimelineEvent[]
 
   @@map("entities")
+  @@index([worldId])
+  @@index([type])
 }
 
 model BookEntityUsage {
@@ -144,6 +147,9 @@ model EntityRelation {
   world        World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
 
   @@map("entity_relations")
+  @@index([fromEntityId])
+  @@index([toEntityId])
+  @@index([worldId])
 }
 
 model TimelineEvent {
@@ -160,6 +166,8 @@ model TimelineEvent {
   world       World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
 
   @@map("timeline_events")
+  @@index([worldId])
+  @@index([entityId])
 }
 
 model Capture {
@@ -175,4 +183,7 @@ model Capture {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("captures")
+  @@index([userId])
+  @@index([entityId])
+  @@index([status])
 }

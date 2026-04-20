@@ -1,13 +1,12 @@
 import { prisma } from '../config/database';
-import * as entitlementService from './entitlementService';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export interface CreateEntityInput {
   worldId: string;
   name: string;
   type: string;
   summary?: string;
-  tags?: string[];
+  tags?: string;
   sourceUrl?: string;
   sourceTitle?: string;
 }
@@ -16,15 +15,15 @@ export interface UpdateEntityInput {
   name?: string;
   type?: string;
   summary?: string;
-  tags?: string[];
+  tags?: string;
   sourceUrl?: string;
   sourceTitle?: string;
 }
 
 export async function getEntitiesByWorld(worldId: string, userId: string) {
-  // 验证世界归属
   const world = await prisma.world.findFirst({
     where: { id: worldId, userId },
+    select: { id: true },
   });
 
   if (!world) {
@@ -34,63 +33,89 @@ export async function getEntitiesByWorld(worldId: string, userId: string) {
   return prisma.entity.findMany({
     where: { worldId },
     orderBy: { updatedAt: 'desc' },
-    include: {
-      usages: {
-        include: {
-          book: {
-            select: {
-              id: true,
-              title: true,
-            },
-          },
-        },
-      },
+    select: {
+      id: true,
+      worldId: true,
+      name: true,
+      type: true,
+      summary: true,
+      tags: true,
+      sourceUrl: true,
+      sourceTitle: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
 }
 
 export async function getEntityById(entityId: string, userId: string) {
-  return prisma.entity.findFirst({
+  const entity = await prisma.entity.findFirst({
     where: { id: entityId, world: { userId } },
-    include: {
-      usages: {
-        include: {
-          book: {
-            select: {
-              id: true,
-              title: true,
-            },
-          },
-        },
-      },
-      relationsFrom: {
-        include: {
-          toEntity: {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-            },
-          },
-        },
-      },
-      relationsTo: {
-        include: {
-          fromEntity: {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-            },
-          },
-        },
-      },
+    select: {
+      id: true,
+      worldId: true,
+      name: true,
+      type: true,
+      summary: true,
+      tags: true,
+      sourceUrl: true,
+      sourceTitle: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
+
+  if (!entity) {
+    return null;
+  }
+
+  const [usages, relationsFrom, relationsTo] = await Promise.all([
+    prisma.bookEntityUsage.findMany({
+      where: { entityId },
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    }),
+    prisma.entityRelation.findMany({
+      where: { fromEntityId: entityId },
+      include: {
+        toEntity: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+      },
+    }),
+    prisma.entityRelation.findMany({
+      where: { toEntityId: entityId },
+      include: {
+        fromEntity: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    ...entity,
+    usages,
+    relationsFrom,
+    relationsTo,
+  };
 }
 
 export async function createEntity(userId: string, input: CreateEntityInput) {
-  // 验证世界归属
   const world = await prisma.world.findFirst({
     where: { id: input.worldId, userId },
   });
@@ -99,19 +124,19 @@ export async function createEntity(userId: string, input: CreateEntityInput) {
     throw new Error('世界不存在');
   }
 
-  await entitlementService.ensureEntityQuota(userId);
-
-  return prisma.entity.create({
+  const entity = await prisma.entity.create({
     data: {
       worldId: input.worldId,
       name: input.name,
       type: input.type,
       summary: input.summary,
-      tags: input.tags ? input.tags.join(',') : null,
+      tags: input.tags,
       sourceUrl: input.sourceUrl,
       sourceTitle: input.sourceTitle,
     },
   });
+
+  return entity;
 }
 
 export async function updateEntity(
@@ -129,10 +154,7 @@ export async function updateEntity(
 
   return prisma.entity.update({
     where: { id: entityId },
-    data: {
-      ...input,
-      tags: input.tags ? input.tags.join(',') : undefined,
-    },
+    data: input,
   });
 }
 
@@ -145,7 +167,7 @@ export async function deleteEntity(entityId: string, userId: string) {
     throw new Error('实体不存在');
   }
 
-  return prisma.entity.delete({
+  await prisma.entity.delete({
     where: { id: entityId },
   });
 }
@@ -170,33 +192,40 @@ export async function searchEntities(
   }
 
   if (tags && tags.length > 0) {
-    // 由于 tags 是逗号分隔的字符串，用 contains 查找
-    where.tags = {
-      contains: tags.join(','),
-    };
+    where.OR = tags.map(tag => ({
+      tags: {
+        contains: tag,
+      },
+    }));
   }
 
   if (query) {
-    where.OR = [
+    const searchConditions = [
       { name: { contains: query } },
       { summary: { contains: query } },
     ];
+
+    if (where.OR) {
+      where.OR = [...where.OR, ...searchConditions];
+    } else {
+      where.OR = searchConditions;
+    }
   }
 
   return prisma.entity.findMany({
     where,
     orderBy: { updatedAt: 'desc' },
-    include: {
-      usages: {
-        include: {
-          book: {
-            select: {
-              id: true,
-              title: true,
-            },
-          },
-        },
-      },
+    select: {
+      id: true,
+      worldId: true,
+      name: true,
+      type: true,
+      summary: true,
+      tags: true,
+      sourceUrl: true,
+      sourceTitle: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
 }
@@ -206,7 +235,6 @@ export async function bindEntityToBook(
   bookId: string,
   userId: string
 ) {
-  // 验证实体和书的归属
   const entity = await prisma.entity.findFirst({
     where: { id: entityId, world: { userId } },
   });
@@ -220,21 +248,7 @@ export async function bindEntityToBook(
   });
 
   if (!book) {
-    throw new Error('书项目不存在');
-  }
-
-  // 检查是否已绑定
-  const existing = await prisma.bookEntityUsage.findUnique({
-    where: {
-      bookId_entityId: {
-        bookId,
-        entityId,
-      },
-    },
-  });
-
-  if (existing) {
-    return existing;
+    throw new Error('书籍不存在');
   }
 
   return prisma.bookEntityUsage.create({
@@ -250,13 +264,18 @@ export async function unbindEntityFromBook(
   bookId: string,
   userId: string
 ) {
-  return prisma.bookEntityUsage.deleteMany({
+  const entity = await prisma.entity.findFirst({
+    where: { id: entityId, world: { userId } },
+  });
+
+  if (!entity) {
+    throw new Error('实体不存在');
+  }
+
+  await prisma.bookEntityUsage.deleteMany({
     where: {
       bookId,
       entityId,
-      book: {
-        world: { userId },
-      },
     },
   });
 }

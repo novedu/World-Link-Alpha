@@ -28,23 +28,54 @@ export async function getWorldsByUser(userId: string) {
 }
 
 export async function getWorldById(worldId: string, userId: string) {
-  return prisma.world.findFirst({
+  // 先验证世界归属
+  const world = await prisma.world.findFirst({
     where: { id: worldId, userId },
-    include: {
-      books: {
-        orderBy: { updatedAt: 'desc' },
-      },
-      entities: {
-        orderBy: { updatedAt: 'desc' },
-      },
-      _count: {
-        select: {
-          books: true,
-          entities: true,
-        },
-      },
+    select: {
+      id: true,
+      userId: true,
     },
   });
+
+  if (!world) {
+    return null;
+  }
+
+  // 分别查询书籍和实体，避免一次性加载过多数据
+  const [books, entities, counts] = await Promise.all([
+    prisma.book.findMany({
+      where: { worldId },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    prisma.entity.findMany({
+      where: { worldId },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.world.findFirst({
+      where: { id: worldId },
+      select: {
+        _count: {
+          select: {
+            books: true,
+            entities: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    ...world,
+    books,
+    entities,
+    _count: counts?._count,
+  };
 }
 
 export async function createWorld(input: CreateWorldInput) {

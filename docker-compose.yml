@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/worldlink.db
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3001
+      - ALLOWED_ORIGINS=chrome-extension://*,http://localhost:3000
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend-data:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./sidepanel
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  backend-data:
