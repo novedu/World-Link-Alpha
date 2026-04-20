@@ -17,7 +17,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "apidoc": "apidoc -i src/ -o apidoc/"
   },
   "dependencies": {
     "@prisma/client": "^5.13.0",
@@ -39,6 +40,7 @@
     "@types/node": "^20.12.12",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
+    "apidoc": "^1.2.0",
     "eslint": "^10.2.1",
     "prisma": "^5.13.0",
     "tsx": "^4.11.0",

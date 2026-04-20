@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../config/database';
+import { cacheService } from './cacheService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
 const JWT_EXPIRES_IN = '7d';
@@ -134,6 +135,13 @@ export async function logoutUser(token: string): Promise<void> {
 }
 
 export async function validateToken(token: string) {
+  const cacheKey = `token:${token}`;
+  const cachedResult = cacheService.get(cacheKey);
+  
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as {
       userId: string;
@@ -147,17 +155,30 @@ export async function validateToken(token: string) {
     });
 
     if (!session || session.expiresAt < new Date()) {
+      // 缓存无效令牌，有效期5分钟
+      cacheService.set(cacheKey, null, 300000);
       return null;
     }
 
+    // 缓存有效令牌，有效期10分钟
+    cacheService.set(cacheKey, decoded, 600000);
     return decoded;
   } catch {
+    // 缓存无效令牌，有效期5分钟
+    cacheService.set(cacheKey, null, 300000);
     return null;
   }
 }
 
 export async function getUserById(userId: string) {
-  return prisma.user.findUnique({
+  const cacheKey = `user:${userId}`;
+  const cachedUser = cacheService.get(cacheKey);
+  
+  if (cachedUser) {
+    return cachedUser;
+  }
+
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
@@ -166,4 +187,11 @@ export async function getUserById(userId: string) {
       createdAt: true,
     },
   });
+
+  if (user) {
+    // 缓存用户信息，有效期10分钟
+    cacheService.set(cacheKey, user, 600000);
+  }
+
+  return user;
 }

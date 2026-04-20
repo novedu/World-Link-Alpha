@@ -1,0 +1,25 @@
+{
+  "name": "World Link Alpha API",
+  "version": "1.0.0",
+  "description": "World Link Alpha 后端API文档",
+  "title": "World Link Alpha API Documentation",
+  "url": "http://localhost:3001",
+  "sampleUrl": "http://localhost:3001",
+  "header": {
+    "title": "介绍",
+    "filename": "header.md"
+  },
+  "footer": {
+    "title": "版权信息",
+    "filename": "footer.md"
+  },
+  "order": [
+    "Authentication",
+    "Worlds",
+    "Books",
+    "Entities",
+    "Captures",
+    "Timeline",
+    "Subscriptions"
+  ]
+}
