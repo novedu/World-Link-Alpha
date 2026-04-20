@@ -188,6 +188,7 @@ export function useActivationFlow({
 
     activationPrevDoneMapRef.current = doneMap;
     activationPrevCompletedRef.current = currentCompletedCount;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activationSteps, activationCompletedCount, activationTotalCount, activationMetricsReadyRef, trackActivation]);
 
   return {

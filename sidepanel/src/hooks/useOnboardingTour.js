@@ -175,7 +175,6 @@ export function useOnboardingTour({
     step.onAction();
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activationMetricsReadyRef.current) return;
     const wasOpen = tourOpenStateRef.current;
@@ -197,9 +196,9 @@ export function useOnboardingTour({
     }
 
     tourOpenStateRef.current = isOnboardingTourVisible;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboardingTourVisible, effectiveOnboardingTourStepIndex, onboardingTourSteps, trackActivation]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activationMetricsReadyRef.current || !isOnboardingTourVisible) return;
 
@@ -214,9 +213,9 @@ export function useOnboardingTour({
       stepIndex: effectiveOnboardingTourStepIndex,
       done: Boolean(step?.done)
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboardingTourVisible, effectiveOnboardingTourStepIndex, onboardingTourSteps, trackActivation]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activationMetricsReadyRef.current || !isOnboardingTourVisible || onboardingTourSteps.length === 0) {
       tourAutoAdvanceSignatureRef.current = '';
@@ -242,6 +241,7 @@ export function useOnboardingTour({
       toStepIndex,
       reason: 'step_completed'
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isOnboardingTourVisible,
     onboardingTourStepIndex,
@@ -250,7 +250,6 @@ export function useOnboardingTour({
     trackActivation
   ]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activationMetricsReadyRef.current) return;
     if (!isOnboardingTourOpen) {
@@ -268,6 +267,7 @@ export function useOnboardingTour({
       reason: 'all_completed'
     });
     showUiMessage('引导已完成，你可以直接进入高频创作。', 'success');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isOnboardingTourOpen,
     areAllOnboardingStepsDone,
