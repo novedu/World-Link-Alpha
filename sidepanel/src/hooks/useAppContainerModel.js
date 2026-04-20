@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import {
   BASE_TAG_OPTIONS,
   ENTITY_RELATION_LABELS,
@@ -69,6 +69,22 @@ export function useAppContainerModel() {
       ...payload
     });
   }, [state.activationSessionIdRef]);
+
+  // 激活会话初始化
+  useEffect(() => {
+    if (!authRequired && !loading && worlds.length >= 0 && !state.activationMetricsReadyRef.current) {
+      // 生成会话 ID
+      const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      state.activationSessionIdRef.current = sessionId;
+      state.activationMetricsReadyRef.current = true;
+      
+      // 发送激活会话开始事件
+      trackActivation('activation_session_start', {
+        completedCount: 0,
+        totalCount: 5 // 五步激活
+      });
+    }
+  }, [authRequired, loading, worlds.length, trackActivation, state]);
 
   const activationDebugAvailable = Boolean(import.meta?.env?.DEV);
 
