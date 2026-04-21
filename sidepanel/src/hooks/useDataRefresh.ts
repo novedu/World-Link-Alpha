@@ -10,7 +10,7 @@ export function useDataRefresh({
   onRefreshData
 }: {
   showUiMessage: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
-  onRefreshData: () => Promise<RefreshResult | void>;
+  onRefreshData: () => Promise<RefreshResult | undefined>;
 }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 

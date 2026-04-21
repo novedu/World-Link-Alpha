@@ -1,3 +1,5 @@
+import { recordBusinessMetric } from '../observability/metrics';
+
 interface AiAssistInput {
   text: string;
   mode: 'summarize' | 'expand';
@@ -107,6 +109,7 @@ const RELATION_TYPE_KEYWORDS = [
 ] as const;
 
 export async function entityAssist(input: AiAssistInput) {
+  recordBusinessMetric('aiUsed');
   const { text, mode, assistProfile } = input;
 
   if (!text) {
@@ -287,7 +290,8 @@ export async function parseManuscript(input: AiParseManuscriptInput) {
 }
 
 export async function entityConflict(input: AiConflictInput) {
-  const { targetEntity, contextEntities = [], worldContext } = input;
+  recordBusinessMetric('aiUsed');
+  const { targetEntity, contextEntities, worldContext } = input;
 
   if (!targetEntity?.name) {
     throw new Error('目标实体名称不能为空');
@@ -479,4 +483,85 @@ function inferRelationType(sentence: string): string {
   const text = String(sentence || '');
   const matched = RELATION_TYPE_KEYWORDS.find((item) => item.words.some((word) => text.includes(word)));
   return matched ? matched.type : 'related_to';
+}
+
+interface SemanticSearchInput {
+  query: string;
+  entities: Array<{
+    id: string;
+    name: string;
+    summary: string;
+    type: string;
+    tags: string;
+  }>;
+  limit?: number;
+}
+
+interface SemanticSearchResult {
+  id: string;
+  name: string;
+  score: number;
+  snippet: string;
+}
+
+export async function semanticSearch(input: SemanticSearchInput): Promise<SemanticSearchResult[]> {
+  const { query, entities, limit = 10 } = input;
+  
+  if (!query || !entities || entities.length === 0) {
+    return [];
+  }
+
+  const queryLower = query.toLowerCase();
+  const results: SemanticSearchResult[] = [];
+
+  for (const entity of entities) {
+    let score = 0;
+    
+    // 名称匹配
+    if (entity.name.toLowerCase().includes(queryLower)) {
+      score += 0.6;
+    }
+    
+    // 摘要匹配
+    if (entity.summary && entity.summary.toLowerCase().includes(queryLower)) {
+      score += 0.3;
+    }
+    
+    // 标签匹配
+    if (entity.tags && entity.tags.toLowerCase().includes(queryLower)) {
+      score += 0.1;
+    }
+    
+    // 类型匹配
+    if (entity.type && entity.type.toLowerCase().includes(queryLower)) {
+      score += 0.1;
+    }
+
+    if (score > 0) {
+      // 生成摘要片段
+      let snippet = entity.summary || '';
+      if (snippet.length > 100) {
+        const index = snippet.toLowerCase().indexOf(queryLower);
+        if (index >= 0) {
+          const start = Math.max(0, index - 30);
+          const end = Math.min(snippet.length, index + query.length + 30);
+          snippet = '...' + snippet.substring(start, end) + '...';
+        } else {
+          snippet = snippet.substring(0, 100) + '...';
+        }
+      }
+
+      results.push({
+        id: entity.id,
+        name: entity.name,
+        score,
+        snippet
+      });
+    }
+  }
+
+  // 按分数排序并返回前N个结果
+  return results
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }

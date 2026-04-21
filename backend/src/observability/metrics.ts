@@ -7,13 +7,22 @@ export interface RouteMetric {
   lastSeenAt: string;
 }
 
+export interface BusinessMetric {
+  count: number;
+  lastUpdatedAt: string;
+}
+
 type StatusBucket = '2xx' | '3xx' | '4xx' | '5xx';
+
+type BusinessMetricKey = 'dau' | 'entityCreated' | 'relationCreated' | 'captureCreated' | 'bookEntityBound' | 'aiUsed';
 
 interface MetricsStore {
   startedAt: number;
   totalRequests: number;
   statusBuckets: Record<StatusBucket, number>;
   routeMetrics: Map<string, RouteMetric>;
+  businessMetrics: Record<BusinessMetricKey, BusinessMetric>;
+  dailyActiveUsers: Set<string>;
 }
 
 const metricsStore: MetricsStore = {
@@ -26,6 +35,15 @@ const metricsStore: MetricsStore = {
     '5xx': 0,
   },
   routeMetrics: new Map<string, RouteMetric>(),
+  businessMetrics: {
+    dau: { count: 0, lastUpdatedAt: new Date().toISOString() },
+    entityCreated: { count: 0, lastUpdatedAt: new Date().toISOString() },
+    relationCreated: { count: 0, lastUpdatedAt: new Date().toISOString() },
+    captureCreated: { count: 0, lastUpdatedAt: new Date().toISOString() },
+    bookEntityBound: { count: 0, lastUpdatedAt: new Date().toISOString() },
+    aiUsed: { count: 0, lastUpdatedAt: new Date().toISOString() },
+  },
+  dailyActiveUsers: new Set<string>(),
 };
 
 function getStatusBucket(statusCode: number): StatusBucket {
@@ -60,6 +78,20 @@ export function recordHttpMetric(routeKey: string, statusCode: number, latencyMs
   metricsStore.routeMetrics.set(key, current);
 }
 
+export function recordBusinessMetric(metricKey: BusinessMetricKey) {
+  const metric = metricsStore.businessMetrics[metricKey];
+  if (metric) {
+    metric.count += 1;
+    metric.lastUpdatedAt = new Date().toISOString();
+  }
+}
+
+export function recordDailyActiveUser(userId: string) {
+  metricsStore.dailyActiveUsers.add(userId);
+  metricsStore.businessMetrics.dau.count = metricsStore.dailyActiveUsers.size;
+  metricsStore.businessMetrics.dau.lastUpdatedAt = new Date().toISOString();
+}
+
 export function getMetricsSnapshot() {
   const now = Date.now();
   const routeRows = [...metricsStore.routeMetrics.entries()]
@@ -80,5 +112,6 @@ export function getMetricsSnapshot() {
     totalRequests: metricsStore.totalRequests,
     statusBuckets: metricsStore.statusBuckets,
     routes: routeRows,
+    businessMetrics: metricsStore.businessMetrics,
   };
 }

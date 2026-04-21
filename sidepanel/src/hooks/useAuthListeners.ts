@@ -39,10 +39,46 @@ type AccountNotice = {
   at?: number;
 };
 
-function buildAuthStatusNotice(statusType: AuthStatusType, message?: string) {
+type AuthStatusNotice = AccountNotice & {
+  signature: string;
+  shouldResetAuth: boolean;
+};
+
+type NoticeAction = NonNullable<AccountNotice['actions']>[number];
+
+function normalizeNoticeActions(actions: unknown): NoticeAction[] {
+  if (!Array.isArray(actions)) return [];
+  return actions
+    .map((item): NoticeAction | null => ({
+      label: String(item?.label || '').trim(),
+      variant: item?.variant === 'primary' ? 'primary' : ('secondary' as const),
+      onClick: typeof item?.onClick === 'function' ? (item.onClick as () => void) : null
+    }))
+    .filter((item) => item.label && item.onClick)
+    .map((item) => item as NoticeAction);
+}
+
+function buildAuthStatusNotice(
+  statusType: AuthStatusType,
+  message?: string,
+  openAccountModal?: () => void
+): AuthStatusNotice {
   switch (statusType) {
-    case 'subscription_expired':
-      return buildSubscriptionRecoveryMessage(statusType, { message });
+    case 'subscription_expired': {
+      const subscriptionNotice = buildSubscriptionRecoveryMessage(statusType, {
+        message,
+        openAccountModal
+      });
+      return {
+        signature: 'subscription_expired',
+        shouldResetAuth: false,
+        type: 'warning',
+        text: subscriptionNotice?.text || '套餐状态已变化，请在账号面板查看。',
+        title: subscriptionNotice?.title,
+        actions: normalizeNoticeActions(subscriptionNotice?.actions),
+        durationMs: subscriptionNotice?.durationMs
+      };
+    }
     case 'auth_expired':
     case 'session_expired':
     default:
@@ -88,13 +124,7 @@ export function useAuthListeners({
   }, [isAccountModalOpen, setAccountNotice, showUiMessage]);
 
   const handleStatus = useCallback(async (statusType: AuthStatusType, message?: string) => {
-    const notice =
-      statusType === 'subscription_expired'
-        ? buildSubscriptionRecoveryMessage(statusType, {
-            message,
-            openAccountModal
-          }) || buildAuthStatusNotice(statusType, message)
-        : buildAuthStatusNotice(statusType, message);
+    const notice = buildAuthStatusNotice(statusType, message, openAccountModal);
     const now = Date.now();
     const isDuplicate =
       notice.signature === lastNoticeRef.current.signature &&

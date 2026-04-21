@@ -8,7 +8,7 @@ import { setToken, clearToken } from '../lib/http/token';
 interface AuthData {
   /** JWT认证令牌 */
   token?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -57,8 +57,8 @@ class AuthService {
    * - 至少包含一个数字
    */
   async register(email: string, password: string) {
-    const response = await http.post<ApiResponse<AuthData>>('/auth/register', { email, password });
-    const data = response.data as AuthData | undefined;
+    const response = await http.post<AuthData>('/auth/register', { email, password });
+    const data = response.data;
     if (response.success && data?.token) {
       await setToken(data.token);
     }
@@ -74,8 +74,8 @@ class AuthService {
    * 登录成功后会自动保存JWT令牌到本地存储
    */
   async login(email: string, password: string) {
-    const response = await http.post<ApiResponse<AuthData>>('/auth/login', { email, password });
-    const data = response.data as AuthData | undefined;
+    const response = await http.post<AuthData>('/auth/login', { email, password });
+    const data = response.data;
     if (response.success && data?.token) {
       await setToken(data.token);
     }

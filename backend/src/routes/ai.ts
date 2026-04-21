@@ -1,5 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
-import { entityAssist, entityConflict, reportAiFeedback, generateImage, parseManuscript } from '../services/aiService';
+import { entityAssist, entityConflict, reportAiFeedback, generateImage, parseManuscript, semanticSearch } from '../services/aiService';
 import { authMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkFeatureAccess } from '../services/entitlementService';
 
@@ -243,6 +243,54 @@ router.post('/parse-manuscript', authMiddleware, async (req: AuthRequest, res: R
     }
 
     const result = await parseManuscript({ worldId, bookId, text });
+
+    return res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/semantic-search', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!(await ensureAiAccess(req, res))) return;
+    const { query, entities, limit } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '搜索查询不能为空',
+          details: {},
+          fieldErrors: { query: '搜索查询不能为空' }
+        },
+        meta: {
+          requestId: req.requestId || '',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    if (!entities || !Array.isArray(entities)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '实体列表不能为空',
+          details: {},
+          fieldErrors: { entities: '实体列表不能为空' }
+        },
+        meta: {
+          requestId: req.requestId || '',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    const result = await semanticSearch({ query, entities, limit });
 
     return res.json({
       success: true,

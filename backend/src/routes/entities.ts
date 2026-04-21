@@ -420,4 +420,42 @@ router.post(
   }
 );
 
+// 批量删除实体
+router.delete(
+  '/batch',
+  authMiddleware,
+  [
+    body('entityIds').isArray().withMessage('实体ID列表必须是数组'),
+    body('entityIds.*').isUUID().withMessage('无效的实体ID'),
+  ],
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '请求参数校验失败',
+            details: {},
+            fieldErrors: getFieldErrors(errors.array())
+          },
+          meta: {
+            requestId: req.requestId || '',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      await entityService.deleteEntities(req.body.entityIds, req.user!.userId);
+      res.json({
+        success: true,
+        data: null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

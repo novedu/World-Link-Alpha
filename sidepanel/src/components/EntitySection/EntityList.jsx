@@ -20,7 +20,10 @@ export function EntityList({
   onStartNewEntity,
   onClearEntityFilters,
   onClearBookSelection,
-  onGoToCaptureTab
+  onGoToCaptureTab,
+  selectedEntities = [],
+  onEntitySelect,
+  onSelectAll
 }) {
   if (entitiesForView.length === 0) {
     return (
@@ -58,10 +61,28 @@ export function EntityList({
     );
   }
 
+  const isAllSelected = entitiesForView.length > 0 && entitiesForView.every(entity => selectedEntities.includes(entity.id));
+
   return (
     <div className="entity-list">
+      {entitiesForView.length > 0 && onEntitySelect && (
+        <div className="entity-list-header">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              onChange={(e) => onSelectAll(e.target.checked)}
+            />
+            <span>全选 ({entitiesForView.length})</span>
+          </label>
+          {selectedEntities.length > 0 && (
+            <span className="selected-count">已选择 {selectedEntities.length} 项</span>
+          )}
+        </div>
+      )}
       {entitiesForView.map((entity) => {
         const isActive = Boolean(editingEntity && editingEntity.id === entity.id);
+        const isSelected = selectedEntities.includes(entity.id);
         const allTags = parseTags(entity.tags);
         const tags = allTags.slice(0, 2);
         const extraTagCount = Math.max(allTags.length - tags.length, 0);
@@ -72,51 +93,61 @@ export function EntityList({
         const usageCount = Array.isArray(entity.usages) ? entity.usages.length : 0;
 
         return (
-          <button
-            key={entity.id}
-            type="button"
-            onClick={() => onEditEntity(entity)}
-            className={`entity-card ${isActive ? 'entity-card-active' : ''}`}
-            title={entityName}
-          >
-            <div className="entity-card-main">
-              <div className="entity-card-header">
-                <span className="entity-card-title">{entityName}</span>
-                {isActive ? <span className="tag tag-secondary">编辑中</span> : null}
+          <div key={entity.id} className={`entity-card ${isActive ? 'entity-card-active' : ''} ${isSelected ? 'entity-card-selected' : ''}`}>
+            {onEntitySelect && (
+              <div className="entity-card-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => onEntitySelect(entity.id, e.target.checked)}
+                />
               </div>
+            )}
+            <button
+              type="button"
+              onClick={() => onEditEntity(entity)}
+              className="entity-card-content"
+              title={entityName}
+            >
+              <div className="entity-card-main">
+                <div className="entity-card-header">
+                  <span className="entity-card-title">{entityName}</span>
+                  {isActive ? <span className="tag tag-secondary">编辑中</span> : null}
+                </div>
 
-              <div className="entity-card-tags">
-                <span className="tag tag-primary">{entity.type || 'other'}</span>
-                {isUsedInCurrentBook ? <span className="tag tag-success">当前作品</span> : null}
-              </div>
-            </div>
-
-            <p className={`entity-card-summary ${summaryText ? '' : 'entity-card-summary-empty'}`}>
-              {summaryText || '暂无摘要，可在右侧补充。'}
-            </p>
-
-            <div className="entity-card-meta-row">
-              <span className="entity-card-meta-item">
-                来源：{sourceText || '手动创建'}
-              </span>
-              <span className="entity-card-meta-item">
-                被作品使用：{usageCount}
-              </span>
-            </div>
-
-            {tags.length > 0 || extraTagCount > 0 ? (
-              <div className="entity-card-footer">
-                <div className="entity-card-tag-list">
-                {tags.map((tag) => (
-                    <span key={tag} className="tag tag-secondary">
-                    {tag}
-                  </span>
-                ))}
-                  {extraTagCount > 0 ? <span className="tag tag-secondary">+{extraTagCount} 标签</span> : null}
+                <div className="entity-card-tags">
+                  <span className="tag tag-primary">{entity.type || 'other'}</span>
+                  {isUsedInCurrentBook ? <span className="tag tag-success">当前作品</span> : null}
                 </div>
               </div>
-            ) : null}
-          </button>
+
+              <p className={`entity-card-summary ${summaryText ? '' : 'entity-card-summary-empty'}`}>
+                {summaryText || '暂无摘要，可在右侧补充。'}
+              </p>
+
+              <div className="entity-card-meta-row">
+                <span className="entity-card-meta-item">
+                  来源：{sourceText || '手动创建'}
+                </span>
+                <span className="entity-card-meta-item">
+                  被作品使用：{usageCount}
+                </span>
+              </div>
+
+              {tags.length > 0 || extraTagCount > 0 ? (
+                <div className="entity-card-footer">
+                  <div className="entity-card-tag-list">
+                  {tags.map((tag) => (
+                      <span key={tag} className="tag tag-secondary">
+                      {tag}
+                    </span>
+                  ))}
+                    {extraTagCount > 0 ? <span className="tag tag-secondary">+{extraTagCount} 标签</span> : null}
+                  </div>
+                </div>
+              ) : null}
+            </button>
+          </div>
         );
       })}
     </div>

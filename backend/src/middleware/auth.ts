@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validateToken } from '../services/authService';
+import { recordDailyActiveUser } from '../observability/metrics';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -55,6 +56,7 @@ export async function authMiddleware(
     }
 
     req.user = decoded;
+    recordDailyActiveUser(decoded.userId);
     next();
   } catch {
     res.status(401).json({

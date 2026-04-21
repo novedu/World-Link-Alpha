@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import { Prisma } from '@prisma/client';
+import { recordBusinessMetric } from '../observability/metrics';
 
 export interface CreateEntityInput {
   worldId: string;
@@ -136,6 +137,7 @@ export async function createEntity(userId: string, input: CreateEntityInput) {
     },
   });
 
+  recordBusinessMetric('entityCreated');
   return entity;
 }
 
@@ -251,12 +253,15 @@ export async function bindEntityToBook(
     throw new Error('书籍不存在');
   }
 
-  return prisma.bookEntityUsage.create({
+  const usage = await prisma.bookEntityUsage.create({
     data: {
       bookId,
       entityId,
     },
   });
+
+  recordBusinessMetric('bookEntityBound');
+  return usage;
 }
 
 export async function unbindEntityFromBook(
@@ -276,6 +281,41 @@ export async function unbindEntityFromBook(
     where: {
       bookId,
       entityId,
+    },
+  });
+}
+
+export async function deleteEntities(
+  entityIds: string[],
+  userId: string
+) {
+  if (!entityIds || entityIds.length === 0) {
+    throw new Error('实体ID列表不能为空');
+  }
+
+  // 验证所有实体是否属于该用户
+  const entities = await prisma.entity.findMany({
+    where: {
+      id: {
+        in: entityIds,
+      },
+      world: { userId },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (entities.length !== entityIds.length) {
+    throw new Error('部分实体不存在或无权限');
+  }
+
+  // 批量删除实体
+  await prisma.entity.deleteMany({
+    where: {
+      id: {
+        in: entityIds,
+      },
     },
   });
 }

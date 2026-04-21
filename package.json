@@ -8,8 +8,10 @@
     "build:sidepanel": "cd sidepanel && npm run build",
     "build": "npm run build:backend && npm run build:sidepanel",
     "typecheck:backend": "cd backend && npm run typecheck",
-    "typecheck": "npm run typecheck:backend",
+    "typecheck:sidepanel": "cd sidepanel && npm run typecheck",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:sidepanel",
     "test:e2e:backend": "cd backend && npm run test:e2e",
+    "test:e2e:backend:socket": "cd backend && RUN_SOCKET_E2E=1 npm run test:e2e",
     "test:e2e": "npm run test:e2e:backend",
     "test:backend": "cd backend && npm run test",
     "test:sidepanel": "cd sidepanel && npm run test",
@@ -25,7 +27,8 @@
     "release:rollback:check": "node scripts/release/verify-rollback-ready.mjs",
     "billing:reconcile": "node backend/scripts/reconcile-billing.mjs",
     "billing:reconcile:fix": "node backend/scripts/reconcile-billing.mjs --fix",
-    "verify": "npm run lint && npm run typecheck && npm run check:docs && npm run security:env && npm run test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run check:docs && npm run security:env && npm run test && npm run build",
+    "verify:fullchain": "npm run verify && npm run test:e2e:backend:socket && npm run release:rollback:check"
   },
   "repository": {
     "type": "git",

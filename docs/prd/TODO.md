@@ -91,7 +91,7 @@
 
 | Gate | 触发条件（Trigger） | 目标（Goal） | 当前状态 | Owner | Due |
 | --- | --- | --- | --- | --- | --- |
-| G0 | 插件主链路稳定 + 前后端连续绿灯 | 允许进入 Web/Admin 演进 | in_progress | 技术负责人 | 2026-04-26 |
+| G0 | 插件主链路稳定 + 前后端连续绿灯 | 允许进入 Web/Admin 演进 | done | 技术负责人 | 2026-04-26 |
 | G1 | Monorepo 多应用骨架 + 路径级 CI | 建立 `extension/web/admin/api` 基线 | todo | 前端负责人 | 2026-05-03 |
 | G2 | 官网页 SEO/性能/埋点达标 | 上线 `www` 营销页 | todo | 产品 + 前端 | 2026-05-10 |
 | G3 | `app` 跑通登录-世界-作品-设定闭环 | 开启用户端 Beta | todo | 产品 + 前端 | 2026-05-17 |
@@ -232,6 +232,29 @@
     - 首屏未登录场景改为 `开始使用` 引导卡
     - `未登录 / 空数据 / 真错误` 三类状态已拆分
     - 有存量数据时，刷新失败改为顶部消息提示，不阻断当前工作区
+
+- [x] Task 12｜全链路稳态优化（采集→后台→云端→门禁）批次 A
+  - Owner: 前后端联合
+  - Due: 2026-04-21
+  - Status: done
+  - 已完成：
+    - 根门禁新增 `typecheck:sidepanel`，并将 `typecheck` 升级为前后端双端校验
+    - 新增 `verify:fullchain`（`verify + socket e2e + rollback-ready`）用于发版前一键串行验收
+    - 背景服务 `WorldBookService / EntityService` 改为读取运行时云端配置（`cloudApiBaseUrl/cloudTimeoutMs`），并补齐超时与网络失败兜底
+    - `UPDATE_CAPTURE_STATUS` 支持 `captureId` 精准更新，并在未命中时回退 `text` 匹配（多命中时返回歧义错误），避免同文本误更新
+    - 插件新增快捷键命令 `open-side-panel`（`Ctrl/Cmd + Shift + Y`）提升高频入口效率并降低冲突概率
+    - Content Script 保存流程增加并发防抖与 `chrome.runtime.lastError` 反馈，降低保存操作误判
+
+- [x] Task 13｜全链路稳态优化（采集→后台→云端→门禁）批次 B
+  - Owner: 前后端联合
+  - Due: 2026-04-21
+  - Status: done
+  - 已完成：
+    - 背景云端请求新增 `cloudApiBaseUrl` fail-fast：cloud 模式未配置地址时直接返回配置错误（`CLOUD_API_BASE_URL_REQUIRED`）
+    - Sidepanel 启动时自动同步 runtimeConfig 到 Background（`SET_RUNTIME_CONFIG`），确保 fail-fast 与真实可用性闭环
+    - 背景服务自动归一化云端地址（自动去除尾部 `/api`），避免出现 `.../api/api` 拼接错误
+    - 内容采集保存结果补充 `partialSuccess` 语义：设定保存成功但部分作品绑定失败时返回失败列表
+    - Content Script 成功提示升级：支持“部分成功”反馈，明确绑定失败数量，降低误判
 
 - [x] Task 05｜AI 总结/扩写 v1（云模型化）
   - Owner: 前后端联调

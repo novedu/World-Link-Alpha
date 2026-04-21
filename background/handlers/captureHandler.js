@@ -1,6 +1,6 @@
 // 采集相关的消息处理器
 
-const { resolveCaptureStatus, applyCaptureStatus, createId, safeName } = require('../utils/helpers');
+const { applyCaptureStatus, safeName } = require('../utils/helpers');
 
 class CaptureHandler {
   constructor(dataRepository) {
@@ -9,18 +9,40 @@ class CaptureHandler {
 
   async handleUpdateCaptureStatus(data) {
     try {
+      const captureId = safeName(data.captureId);
       const text = safeName(data.text);
       const status = data.status;
       const timestamp = Number(data.timestamp || Date.now());
 
-      if (!text) {
-        return { success: false, error: '缺少采集文本' };
+      if (!captureId && !text) {
+        return { success: false, error: '缺少采集记录标识' };
       }
 
       const store = await this.dataRepository.readData();
-      const index = store.capturedList.findIndex(
-        (item) => String(item.text || '').trim() === text
-      );
+      let index = -1;
+      if (captureId) {
+        index = store.capturedList.findIndex((item) => safeName(item.id) === captureId);
+      }
+
+      if (index < 0 && text) {
+        const matchedIndices = store.capturedList
+          .map((item, itemIndex) => ({
+            itemIndex,
+            text: String(item.text || '').trim()
+          }))
+          .filter((item) => item.text === text)
+          .map((item) => item.itemIndex);
+
+        if (matchedIndices.length > 1) {
+          return {
+            success: false,
+            error: '匹配到多条同文本采集记录，请使用 captureId 精准更新',
+            errorType: 'ambiguous'
+          };
+        }
+
+        index = matchedIndices[0] ?? -1;
+      }
 
       if (index < 0) {
         return { success: false, error: '未找到对应的采集记录' };
@@ -59,8 +81,10 @@ class CaptureHandler {
       return this.createValidationResult('UPDATE_CAPTURE_STATUS 参数必须是对象');
     }
 
-    if (!safeName(payload.text)) {
-      return this.createValidationResult('UPDATE_CAPTURE_STATUS 缺少 text');
+    const captureId = safeName(payload.captureId);
+    const text = safeName(payload.text);
+    if (!captureId && !text) {
+      return this.createValidationResult('UPDATE_CAPTURE_STATUS 缺少 captureId 或 text');
     }
 
     const CAPTURE_STATUS_VALUES = new Set(['inbox', 'organized', 'converted']);

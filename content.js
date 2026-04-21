@@ -3,6 +3,7 @@
 
 let toastTimer = null;
 let capturePanel = null;
+let isSavingFromPanel = false;
 let panelData = {
   selectedText: '',
   pageTitle: document.title,
@@ -567,6 +568,7 @@ function updateBooksList() {
 }
 
 function closeCapturePanel() {
+  isSavingFromPanel = false;
   if (capturePanel) {
     capturePanel.remove();
     capturePanel = null;
@@ -588,6 +590,7 @@ function handleKeyDown(e) {
 
 function saveEntity() {
   const saveButton = document.getElementById('wl-save-button');
+  if (isSavingFromPanel) return;
   // 验证
   if (!panelData.selectedWorld) {
     showError('请选择世界');
@@ -600,6 +603,7 @@ function saveEntity() {
 
   // 设置加载状态
   if (saveButton) {
+    isSavingFromPanel = true;
     saveButton.disabled = true;
     saveButton.textContent = '保存中...';
     saveButton.style.opacity = '0.7';
@@ -623,20 +627,34 @@ function saveEntity() {
   chrome.runtime.sendMessage(
     { type: 'SAVE_ENTITY', data: entityData },
     (response) => {
+      const runtimeError = chrome.runtime?.lastError;
       // 恢复按钮状态
       if (saveButton) {
+        isSavingFromPanel = false;
         saveButton.disabled = false;
         saveButton.style.opacity = '1';
         saveButton.style.cursor = 'pointer';
       }
 
+      if (runtimeError) {
+        if (saveButton) saveButton.textContent = '保存';
+        showError(runtimeError.message || '插件通信失败，请重试');
+        return;
+      }
+
       if (response && response.success) {
         const worldName = panelData.worlds.find(w => w.id === panelData.selectedWorld)?.name || '未知';
-        saveButton.textContent = '保存成功！';
-        showToast(`✅ 已保存到「${worldName}」`);
+        const hasPartialFailure = Array.isArray(response.failedBookBindings) && response.failedBookBindings.length > 0;
+        saveButton.textContent = hasPartialFailure ? '部分成功' : '保存成功！';
+        showToast(
+          hasPartialFailure
+            ? `✅ 已保存到「${worldName}」，但有${response.failedBookBindings.length}个作品绑定失败`
+            : `✅ 已保存到「${worldName}」`,
+          false
+        );
         setTimeout(() => {
           closeCapturePanel();
-        }, 500);
+        }, hasPartialFailure ? 1200 : 500);
       } else {
         saveButton.textContent = '保存';
         const errorMsg = response?.error || '保存失败，请稍后重试';

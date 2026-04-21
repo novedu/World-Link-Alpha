@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
-import { createDefaultRuntimeConfig, createDefaultRuntimeContext } from '../services/runtimeApi';
+import { createDefaultRuntimeConfig, createDefaultRuntimeContext, sendRuntimeMessage } from '../services/runtimeApi';
 import { authService } from '../services/auth.service';
 import { entitlementService } from '../services/entitlement.service';
 import { getToken } from '../lib/http/token';
+
+function resolveCloudApiBaseUrl() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || '').trim();
+  if (!raw) return '';
+  return raw.replace(/\/+$/g, '').replace(/\/api$/i, '');
+}
 
 function buildUnauthedRuntimeContext() {
   // 当前版本默认“云端优先”：未登录也保持 cloud 模式，
@@ -97,6 +103,23 @@ export function useRuntimeContext({ onAuthStateChange }) {
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
   const [accountNotice, setAccountNotice] = useState(null);
 
+  const syncRuntimeConfigToBackground = async () => {
+    const cloudApiBaseUrl = resolveCloudApiBaseUrl();
+    if (!cloudApiBaseUrl) return;
+    const runtime = globalThis?.chrome?.runtime;
+    if (!runtime?.sendMessage) return;
+
+    try {
+      await sendRuntimeMessage('SET_RUNTIME_CONFIG', {
+        repositoryMode: 'cloud',
+        cloudApiBaseUrl,
+        cloudTimeoutMs: 12000
+      });
+    } catch {
+      // 背景运行时配置同步失败不阻断主流程，后续请求会给出可读错误提示
+    }
+  };
+
   const refreshAuthSession = async () => {
     const token = await getToken();
     if (!token) {
@@ -155,6 +178,7 @@ export function useRuntimeContext({ onAuthStateChange }) {
   };
 
   useEffect(() => {
+    void syncRuntimeConfigToBackground();
     void refreshAuthSession();
     void refreshRuntimeContext();
   }, []);

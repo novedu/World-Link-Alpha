@@ -218,6 +218,42 @@ function ensureSidePanelBehavior() {
   }
 }
 
+function getCurrentActiveTab() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (chrome.runtime.lastError) {
+        resolve(null);
+        return;
+      }
+      resolve(Array.isArray(tabs) ? tabs[0] || null : null);
+    });
+  });
+}
+
+async function openSidePanelForTab(tab) {
+  const tabId = Number(tab?.id || 0);
+  if (!tabId) {
+    return { success: false, error: '未找到可用标签页' };
+  }
+
+  try {
+    await chrome.sidePanel.open({ tabId });
+    return { success: true };
+  } catch (error) {
+    broadcastRuntimeMessage({
+      type: 'OPEN_SIDE_PANEL_FAILED',
+      data: {
+        message: error?.message || '打开侧边栏失败',
+        timestamp: Date.now()
+      }
+    });
+    return {
+      success: false,
+      error: error?.message || '打开侧边栏失败'
+    };
+  }
+}
+
 function bootstrapRuntime() {
   ensureCaptureContextMenu();
   ensureSidePanelBehavior();
@@ -260,6 +296,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
   } catch (error) {
     console.warn('[Background] open panel failed:', error?.message || error);
+  }
+});
+
+chrome.commands?.onCommand?.addListener(async (command) => {
+  if (command !== 'open-side-panel') return;
+  const tab = await getCurrentActiveTab();
+  const result = await openSidePanelForTab(tab);
+  if (!result.success) {
+    console.warn('[Background] open-side-panel failed:', result.error);
   }
 });
 

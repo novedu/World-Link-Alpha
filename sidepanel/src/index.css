@@ -1823,9 +1823,53 @@ body {
     background-color: var(--bg-card);
     box-shadow: var(--shadow-xs);
     text-align: left;
-    display: grid;
+    display: flex;
+    align-items: flex-start;
     gap: 10px;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), background-color var(--transition-fast);
+  }
+
+  .entity-card-selected {
+    border-color: var(--primary);
+    background-color: rgba(59, 130, 246, 0.05);
+  }
+
+  .entity-card-checkbox {
+    margin-right: 8px;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .entity-card-content {
+    flex: 1;
+    text-align: left;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: grid;
+    gap: 10px;
+  }
+
+  .entity-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .selected-count {
+    font-size: 14px;
+    color: var(--text-secondary);
   }
 
   .entity-card:hover {
