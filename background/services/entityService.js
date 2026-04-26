@@ -1,6 +1,6 @@
 // 实体服务模块
 
-const { createId, safeName, normalizeEntityRecordForStorage, normalizeEntityRelationsPayload } = require('../utils/helpers');
+const { safeName, normalizeEntityRecordForStorage } = require('../utils/helpers');
 const { DEFAULT_RUNTIME_CONFIG } = require('../utils/constants');
 
 class EntityService {
@@ -156,142 +156,108 @@ class EntityService {
   }
 
   async saveEntityFromSidepanel(payload) {
-    const input = payload?.entity || {};
-    const selectedBookId = safeName(payload?.selectedBookId);
-    const usedInCurrentBook = Boolean(input.usedInCurrentBook);
-    const name = safeName(input.name);
-    const worldId = safeName(input.worldId);
+    try {
+      const input = payload?.entity || {};
+      const selectedBookId = safeName(payload?.selectedBookId);
+      const usedInCurrentBook = Boolean(input.usedInCurrentBook);
+      const name = safeName(input.name);
+      const worldId = safeName(input.worldId);
 
-    if (!name) return { success: false, error: '实体名称不能为空' };
-    if (!worldId) return { success: false, error: '请先选择世界' };
+      if (!name) return { success: false, error: '实体名称不能为空' };
+      if (!worldId) return { success: false, error: '请先选择世界' };
 
-    const store = await this.dataRepository.readData();
-    const existingIndex = input.id ? store.entities.findIndex((item) => item.id === input.id) : -1;
-    const existing = existingIndex >= 0 ? store.entities[existingIndex] : null;
+      const isNew = !input.id;
+      let entity;
 
-    const entityQuota = await this.ensureEntityCreationQuota(store, existingIndex < 0);
-    if (!entityQuota.success) {
-      return entityQuota;
-    }
-
-    const entity = this.buildEntityRecord(input, existing);
-
-    if (existingIndex >= 0) {
-      store.entities[existingIndex] = entity;
-    } else {
-      store.entities.unshift(entity);
-    }
-
-    let bookEntityUsages = store.bookEntityUsages;
-    if (selectedBookId) {
-      const usageIndex = store.bookEntityUsages.findIndex(
-        (usage) => usage.bookId === selectedBookId && usage.entityId === entity.id
-      );
-      if (usedInCurrentBook && usageIndex === -1) {
-        bookEntityUsages.unshift({
-          id: createId('usage'),
-          bookId: selectedBookId,
-          entityId: entity.id,
-          createdAt: Date.now()
+      if (isNew) {
+        // 创建新实体
+        const createResult = await this.request('/entities', {
+          method: 'POST',
+          body: {
+            worldId,
+            name,
+            type: safeName(input.type) || 'other',
+            summary: String(input.summary || '').trim(),
+            tags: normalizeEntityRecordForStorage({ tags: input.tags || [] }).tags,
+            sourceUrl: String(input.sourceUrl || '').trim(),
+            sourceTitle: String(input.sourceTitle || '').trim()
+          }
         });
-      } else if (!usedInCurrentBook && usageIndex !== -1) {
-        bookEntityUsages.splice(usageIndex, 1);
+        if (!createResult.success || !createResult.data) {
+          return { success: false, error: createResult.error || '保存实体失败' };
+        }
+        entity = createResult.data;
+      } else {
+        // 更新已有实体
+        const updateResult = await this.request(`/entities/${encodeURIComponent(input.id)}`, {
+          method: 'PUT',
+          body: {
+            name,
+            type: safeName(input.type) || 'other',
+            summary: String(input.summary || '').trim(),
+            tags: normalizeEntityRecordForStorage({ tags: input.tags || [] }).tags,
+            sourceUrl: String(input.sourceUrl || '').trim(),
+            sourceTitle: String(input.sourceTitle || '').trim()
+          }
+        });
+        if (!updateResult.success || !updateResult.data) {
+          return { success: false, error: updateResult.error || '更新实体失败' };
+        }
+        entity = updateResult.data;
       }
-    }
 
-    let entityRelations = store.entityRelations;
-    if (Array.isArray(input.relations)) {
-      const validTargetEntityIds = new Set(
-        store.entities
-          .filter((item) => safeName(item.worldId) === entity.worldId)
-          .map((item) => safeName(item.id))
-          .filter(Boolean)
-      );
-      validTargetEntityIds.add(entity.id);
+      // 处理关系数据
+      let relations = [];
+      if (Array.isArray(input.relations) && input.relations.length > 0) {
+        const relationsResult = await this.request(`/entities/${encodeURIComponent(entity.id)}/relations`, {
+          method: 'PUT',
+          body: {
+            worldId,
+            relations: input.relations.map(rel => ({
+              toEntityId: safeName(rel.targetEntityId || rel.toEntityId || rel.entityId),
+              type: safeName(rel.type),
+              note: String(rel.note || '').trim()
+            })).filter(rel => rel.toEntityId && rel.type)
+          }
+        });
+        if (relationsResult.success && relationsResult.data) {
+          relations = relationsResult.data;
+        }
+      } else if (!isNew) {
+        // 清空关系
+        await this.request(`/entities/${encodeURIComponent(entity.id)}/relations`, {
+          method: 'PUT',
+          body: {
+            worldId,
+            relations: []
+          }
+        });
+      }
 
-      const normalizedRelations = normalizeEntityRelationsPayload(input.relations, {
-        worldId: entity.worldId,
-        fromEntityId: entity.id,
-        validTargetEntityIds
-      });
+      // 处理书籍绑定
+      if (selectedBookId) {
+        if (usedInCurrentBook) {
+          await this.request(`/entities/${encodeURIComponent(entity.id)}/bind`, {
+            method: 'POST',
+            body: { bookId: selectedBookId }
+          });
+        } else {
+          await this.request(`/entities/${encodeURIComponent(entity.id)}/unbind`, {
+            method: 'POST',
+            body: { bookId: selectedBookId }
+          });
+        }
+      }
 
-      entityRelations = [
-        ...normalizedRelations,
-        ...store.entityRelations.filter((relation) => {
-          return !(
-            safeName(relation?.worldId) === entity.worldId &&
-            safeName(relation?.fromEntityId) === entity.id
-          );
-        })
-      ];
-    }
-
-    await this.dataRepository.writeData({
-      entities: store.entities,
-      bookEntityUsages,
-      entityRelations
-    });
-
-    return {
-      success: true,
-      entity,
-      relations: entityRelations.filter(
-        (relation) => safeName(relation?.worldId) === entity.worldId && safeName(relation?.fromEntityId) === entity.id
-      )
-    };
-  }
-
-  async ensureEntityCreationQuota(store, isNew) {
-    if (!isNew) return { success: true };
-    const existingCount = store.entities.length;
-    const limit = 500; // Free 版本限制
-    if (existingCount >= limit) {
       return {
-        success: false,
-        error: '达到实体数量上限，请升级到 Pro 版本',
-        errorType: 'quota',
-        limit
+        success: true,
+        entity,
+        relations
       };
+    } catch (error) {
+      console.error('[EntityService] saveEntityFromSidepanel error:', error);
+      return { success: false, error: error?.message || '保存失败' };
     }
-    return { success: true };
-  }
-
-  buildEntityRecord(input, existing) {
-    const now = Date.now();
-    const base = existing || {};
-    const entity = {
-      id: safeName(input.id) || base.id || createId('entity'),
-      worldId: safeName(input.worldId) || base.worldId || '',
-      name: safeName(input.name) || base.name || '',
-      type: safeName(input.type) || base.type || 'other',
-      summary: String(input.summary || base.summary || '').trim(),
-      description: String(input.description || base.description || '').trim(),
-      tags: input.tags || base.tags || [],
-      attributes: input.attributes || base.attributes || {},
-      selectedText: String(input.selectedText || base.selectedText || '').trim(),
-      createdAt: Number(base.createdAt || now),
-      updatedAt: now
-    };
-    return normalizeEntityRecordForStorage(entity);
-  }
-
-  updateBookEntityUsages(existing, entityId, selectedBookIds) {
-    const validBookIds = new Set(selectedBookIds);
-    const now = Date.now();
-    const kept = existing.filter((usage) => {
-      if (usage.entityId !== entityId) return true;
-      return validBookIds.has(usage.bookId);
-    });
-    const existingBookIds = new Set(kept.map((usage) => usage.bookId));
-    const added = selectedBookIds
-      .filter((bookId) => !existingBookIds.has(bookId))
-      .map((bookId) => ({
-        id: createId('usage'),
-        bookId,
-        entityId,
-        createdAt: now
-      }));
-    return [...added, ...kept];
   }
 
   async checkEntityConflict(payload) {
@@ -299,61 +265,37 @@ class EntityService {
       const worldId = safeName(payload.worldId);
       const draftEntity = payload.draftEntity;
       const draftName = safeName(draftEntity?.name);
-      const draftSummary = String(draftEntity?.summary || '').trim();
 
       if (!worldId || !draftName) {
         return { success: false, error: '缺少必要参数' };
       }
 
-      const store = await this.dataRepository.readData();
-      const worldEntities = store.entities.filter(
-        (item) => safeName(item.worldId) === worldId && safeName(item.id) !== safeName(draftEntity?.id)
-      );
-
-      const conflicts = [];
-      for (const existing of worldEntities) {
-        const existingName = safeName(existing.name);
-        const existingSummary = String(existing.summary || '').trim();
-
-        if (existingName === draftName) {
-          conflicts.push({
-            existingId: existing.id,
-            existingName,
-            reason: 'exact_name_duplicate',
-            severity: 'high'
-          });
-        } else if (this.calculateSimilarity(existingName, draftName) > 0.7) {
-          conflicts.push({
-            existingId: existing.id,
-            existingName,
-            reason: 'name_similar',
-            severity: 'medium'
-          });
+      const result = await this.request('/ai/entity-conflict', {
+        method: 'POST',
+        body: {
+          worldId,
+          targetEntity: {
+            id: draftEntity?.id,
+            name: draftName,
+            summary: String(draftEntity?.summary || '').trim(),
+            type: draftEntity?.type
+          }
         }
+      });
+
+      if (!result.success) {
+        return { success: false, error: result.error || '冲突检查失败' };
       }
 
-      return { success: true, conflicts };
+      return {
+        success: true,
+        conflicts: result.data?.conflicts || [],
+        hasConflicts: result.data?.hasConflicts || false
+      };
     } catch (error) {
       console.error('[EntityService] checkEntityConflict error:', error);
       return { success: false, error: error?.message || '冲突检查失败' };
     }
-  }
-
-  calculateSimilarity(str1, str2) {
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
-    const longerLength = longer.length;
-
-    if (longerLength === 0) return 1.0;
-
-    let matches = 0;
-    for (let i = 0; i < shorter.length; i++) {
-      if (longer.includes(shorter[i])) {
-        matches++;
-      }
-    }
-
-    return matches / longerLength;
   }
 }
 
