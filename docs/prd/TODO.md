@@ -50,19 +50,14 @@
 
 > 评分来源：`docs/prd/World-Link-Alpha-PRD-overview.md`。
 > 当前口径：文档与规划成熟度复评 `90/100`；产品运行实绩需在 2026-05-20 前达成门槛。
-> 周执行排期与证据模板见：`docs/prd/score-90-execution-plan.md`。
-> W1 日执行细化见：`docs/prd/score-90-w1-daily-plan.md`。
-> W2/W3 日执行细化见：`docs/prd/score-90-w2-daily-plan.md`、`docs/prd/score-90-w3-daily-plan.md`。
-> 周复盘模板见：`docs/prd/score-90-weekly-review-template.md`。
-> 执行前扫描台账（首轮）见：`docs/prd/score-90-pre-scan-register-round1-2026-04-19.md`。
 
 | Item | 目标 | Priority | Status | Owner | Due | DoD |
 | --- | --- | --- | --- | --- | --- | --- |
 | SCORE-01 | 建立新手激活任务流（15 分钟闭环） | P0 | in_progress | 产品 + 前端 | 2026-05-08 | 新用户 D1 激活完成率可统计且 >= 45% |
 | SCORE-02 | 设定来源追溯与“被使用视图”增强 | P0 | in_progress | 前端负责人 | 2026-05-10 | 设定详情可展示来源与使用作品列表 |
 | SCORE-03 | 世界资产问答（带引用）v0 | P1 | todo | 前后端联调 | 2026-05-15 | 回答结果均带实体或来源引用对象 |
-| SCORE-04 | 语义检索增强（不替代结构化筛选） | P1 | todo | 前后端联调 | 2026-05-20 | 可在实体/灵感记录中完成语义召回 |
-| SCORE-05 | 北极星指标看板（激活/留存/复用/转化） | P0 | todo | 产品 + 数据 | 2026-05-10 | 周报可自动产出，口径固定 |
+| SCORE-04 | 语义检索增强（不替代结构化筛选） | P1 | done | 前后端联调 | 2026-04-27 | 可在实体/灵感记录中完成语义召回 |
+| SCORE-05 | 北极星指标看板（激活/留存/复用/转化） | P0 | done | 产品 + 数据 | 2026-04-27 | 周报可自动产出，口径固定 |
 | SCORE-06 | RC 放行模板制度化执行 | P0 | todo | 产品 + 技术负责人 | 2026-05-12 | 每次 RC 均有 Go/No-Go 记录 |
 | SCORE-07 | Free→Pro 升级实验 v1（门禁触发文案） | P1 | todo | 产品 + 前端 | 2026-05-18 | 14 天转化率 >= 3% |
 | SCORE-08 | 版本冻结纪律执行（功能准入评审） | P0 | todo | 产品负责人 | 2026-05-20 | 冲刺期新增需求均有准入结论 |
@@ -75,19 +70,18 @@
 4. `SCORE-05` 未上线前，不宣称“产品实绩达到 90 分”。
 5. 每次执行前必须先做“功能完成度扫描”，判定后再推进。
 
-### 本周执行节奏（W1-W3）
+### 本周执行节奏（W2-W3）
 
 | 周次 | 核心目标 | 关键事项 |
 | --- | --- | --- |
-| W1（2026-04-20 ~ 2026-04-26） | 建立可衡量与可放行基础 | SCORE-05、SCORE-06、TST-02、TST-03 |
 | W2（2026-04-27 ~ 2026-05-03） | 打通激活与追溯主链路 | SCORE-01、SCORE-02 |
-| W3（2026-05-04 ~ 2026-05-10） | 完成增长与价值验证闭环 | SCORE-03、SCORE-04、SCORE-07、SCORE-08 |
+| W3（2026-05-04 ~ 2026-05-10） | 完成增长与价值验证闭环 | SCORE-03、SCORE-07、SCORE-08 |
 
 ---
 
 ## Web/Admin 演进触发节点（非微前端策略）
 
-> 详细蓝图见：`docs/prd/web-admin-evolution-roadmap.md`
+> 详细蓝图见：`docs/prd/evolution-roadmap.md`
 
 | Gate | 触发条件（Trigger） | 目标（Goal） | 当前状态 | Owner | Due |
 | --- | --- | --- | --- | --- | --- |
@@ -109,7 +103,7 @@
 
 ## 测试体系与发布门禁（新增）
 
-> 详细策略见：`docs/prd/testing-strategy-and-release-gate.md`
+> 详细策略见：`docs/prd/testing-strategy.md`
 
 | Task | 目标 | Priority | Status | Owner | Due |
 | --- | --- | --- | --- | --- | --- |
@@ -127,8 +121,7 @@
 
 ### 测试资产台账位置（新增）
 
-- 标准模板：`docs/prd/testing-asset-register-template.md`
-- 首轮执行版：`docs/prd/testing-asset-register-round1-2026-04-19.md`
+- 标准模板：已整合到 `docs/prd/testing-strategy.md`
 - 要求：每次 RC 前更新 `最近执行`、`证据链接`、`放行结论`
 
 ---
@@ -172,7 +165,7 @@
 - [x] `npm run verify` 通过（lint/typecheck/check:docs/security/test/build 全绿）
 - [x] 后端 E2E 基线修复：密码规则对齐、tags 输入类型对齐、长驻定时器导致测试不退出问题修复
 - [x] CI 补强：`verify.yml` / `release-gate.yml` / `ci.yml` 已对后端 E2E 启用 `RUN_SOCKET_E2E=1`
-- [x] 覆盖率阈值门禁已落地：`sidepanel/vitest.config.js` + `docs/prd/testing-strategy-and-release-gate.md`
+- [x] 覆盖率阈值门禁已落地：`sidepanel/vitest.config.js` + `docs/prd/testing-strategy.md`
 - [x] 启动即校验环境变量：`backend/src/config/env.ts` + `backend/src/index.ts`
 - [x] 发布回滚演练记录：`docs/ops/release/release-drill-log-2026-04-21.md`
 - [x] D7 预检记录已建立：`docs/ops/release/go-no-go-precheck-2026-04-21.md`
@@ -535,11 +528,11 @@
   - 创建弹窗内若撞到配额上限，先结束当前错误上下文，再引导去账号面板处理
 
 - [x] 发版端到端验收清单（E2E）
-  - 新增：`docs/prd/e2e-acceptance-checklist.md`
+  - 已整合：`docs/prd/testing-strategy.md`
   - 覆盖：云端存储、Entitlements、AI 反馈、时间轴、生图
 
 - [x] 开发规范文档（模块化与UI落地约束）
-  - 新增：`docs/prd/development-guidelines.md`
+  - 已整合：`docs/prd/technical-guidelines.md`
   - 明确：`App.jsx` 规模阈值、组件职责边界、PR 自检清单
 
 - [x] 消息参数前置校验与错误口径统一
@@ -638,7 +631,7 @@
   - Owner: 产品负责人
   - Due: 2026-05-20
   - Status: done
-  - 基线文档：`docs/prd/plugin-to-web-migration.md`
+  - 基线文档：`docs/prd/evolution-roadmap.md`
   - 已完成：
     - 固化双端共用 API 契约
     - 完成网页 Alpha 的世界/书/实体闭环
@@ -788,7 +781,7 @@
   - 临时工具脚本（如 `fix-validation.js`）仅本地使用，不提交
 
 - [x] 文档补齐规范说明
-  - 更新 `docs/prd/development-guidelines.md`：新增「9. 请求层规范」「10. 仓库产物治理」
+  - 已整合到 `docs/prd/technical-guidelines.md`
   - 验收：文档完整记录规范与验收标准
 
 ---

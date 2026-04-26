@@ -19,7 +19,7 @@
 ## 2) 当前结论
 
 - 当前结论：**No-Go（预检阶段）**
-- 主要阻断项：P0 手工 E2E 验收证据未补齐（详见 `docs/prd/e2e-acceptance-checklist.md`）。
+- 主要阻断项：P0 手工 E2E 验收证据未补齐（详见 `docs/prd/testing-strategy.md`）。
 
 ## 3) 冻结范围（即刻生效）
 

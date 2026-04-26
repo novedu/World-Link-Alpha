@@ -8,43 +8,20 @@
   产品总览 PRD（范围、目标、对象模型、路线图、评分卡）
 - `docs/prd/TODO.md`
   已完成 / 待开发 Backlog（按优先级持续维护）
-- `docs/prd/frontend-architecture-messaging.md`
-  前端消息协议与架构说明（以当前代码为准）
 - `docs/prd/freemium-cloud-architecture.md`
   云端化与免费 / 收费分层方案
-- `docs/prd/plugin-to-web-migration.md`
-  插件升级到网页形态的分阶段迁移方案
-- `docs/prd/web-admin-evolution-roadmap.md`
-  Web/Admin 演进触发节点、Gate 门槛与回退策略
-- `docs/prd/testing-strategy-and-release-gate.md`
-  测试策略、分层职责与发布放行标准
-- `docs/prd/e2e-acceptance-checklist.md`
-  发版前端到端验收清单
-- `docs/prd/testing-asset-register-template.md`
-  测试资产台账模板
-- `docs/prd/testing-asset-register-round1-2026-04-19.md`
-  首轮测试资产台账执行版
-- `docs/prd/score-90-execution-plan.md`
-  90 分冲刺执行排期（W1-W3）与验收证据模板
-- `docs/prd/score-90-w1-daily-plan.md`
-  90 分冲刺 W1 日执行计划（D1-D7）与每日验收模板
-- `docs/prd/score-90-w2-daily-plan.md`
-  90 分冲刺 W2 日执行计划（D1-D7）与每日验收模板
-- `docs/prd/score-90-w3-daily-plan.md`
-  90 分冲刺 W3 日执行计划（D1-D7）与每日验收模板
-- `docs/prd/score-90-weekly-review-template.md`
-  90 分冲刺周复盘模板（W1-W3）
-- `docs/prd/score-90-pre-scan-register-round1-2026-04-19.md`
-  执行前扫描台账首轮执行版（先扫描后推进）
-- `docs/prd/readany-overlap-analysis.md`
-  ReadAny 重叠能力分析与差异化定位建议
-- `docs/prd/development-guidelines.md`
-  工程规范、模块边界与 PR 自检清单
-
-## 历史文档（Deprecated）
-
-- `docs/prd/subscription-product-strategy.md`
-  已废弃。原文存在定价和能力假设，当前请以 `freemium-cloud-architecture.md` 与总 PRD 为准。
+- `docs/prd/competitive-analysis.md`
+  竞品分析与产品定位（ReadAny/Cubox Pro 对比、评分、SWOT）
+- `docs/prd/technical-guidelines.md`
+  技术规范与开发指南（架构、模块化、消息协议、工程治理）
+- `docs/prd/testing-strategy.md`
+  测试策略与发布管理（分层测试、E2E 清单、发布门禁、测试台账）
+- `docs/prd/evolution-roadmap.md`
+  产品演进路线图（插件到 Web/Admin 的分阶段迁移、Gate 管理）
+- `docs/prd/marketing-plan.md`
+  市场推广计划（产品定位、场景示例、用户社区）
+- `docs/prd/activation-event-dictionary.md`
+  用户激活事件字典（用于北极星指标统计）
 
 ## 文档治理规则
 

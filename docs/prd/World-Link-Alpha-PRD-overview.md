@@ -89,7 +89,7 @@ World-Link Alpha 是一个 **Chrome Sidepanel + 网页采集弹窗** 的双入�
 
 ### 形态演进策略（新增）
 - 插件到 Web/后台管理的落地策略，采用“**非微前端 + 多应用**”路径。
-- 演进触发节点与阶段目标详见：`docs/prd/web-admin-evolution-roadmap.md`。
+- 演进触发节点与阶段目标详见：`docs/prd/evolution-roadmap.md`。
 
 ---
 
@@ -601,4 +601,4 @@ flowchart TD
 | Free→Pro 转化率 | 触发门禁后 14 天内升级比例 | >= 3% |
 | 发布可用性 | RC 阶段 P0 必过项通过率 | 100% |
 
-执行排期与证据模板见：`docs/prd/score-90-execution-plan.md`。
+执行排期与进度更新：`docs/prd/TODO.md`。

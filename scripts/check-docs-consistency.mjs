@@ -11,15 +11,13 @@ const requiredFiles = [
   'docs/prd/README.md',
   'docs/prd/World-Link-Alpha-PRD-overview.md',
   'docs/prd/TODO.md',
-  'docs/prd/frontend-architecture-messaging.md',
   'docs/prd/freemium-cloud-architecture.md',
-  'docs/prd/web-admin-evolution-roadmap.md',
-  'docs/prd/testing-strategy-and-release-gate.md',
-  'docs/prd/e2e-acceptance-checklist.md',
-  'docs/prd/testing-asset-register-template.md',
-  'docs/prd/testing-asset-register-round1-2026-04-19.md',
-  'docs/prd/plugin-to-web-migration.md',
-  'docs/prd/readany-overlap-analysis.md',
+  'docs/prd/competitive-analysis.md',
+  'docs/prd/technical-guidelines.md',
+  'docs/prd/testing-strategy.md',
+  'docs/prd/evolution-roadmap.md',
+  'docs/prd/marketing-plan.md',
+  'docs/prd/activation-event-dictionary.md',
   'docs/design/README.md',
   'docs/design/ux-spec.md',
   'docs/design/ui-design-spec.md'
@@ -28,8 +26,31 @@ const requiredFiles = [
 const forbiddenFiles = [
   'docs/prd/feature-book-import.md',
   'docs/prd/feature-selection-capture.md',
+  'docs/prd/subscription-product-strategy.md',
+  'docs/prd/score-90-execution-plan.md',
+  'docs/prd/score-90-w1-daily-plan.md',
+  'docs/prd/score-90-w2-daily-plan.md',
+  'docs/prd/score-90-w3-daily-plan.md',
+  'docs/prd/score-90-weekly-review-template.md',
+  'docs/prd/score-90-pre-scan-register-round1-2026-04-19.md',
+  'docs/prd/testing-asset-register-round1-2026-04-19.md',
+  'docs/prd/readany-overlap-analysis.md',
+  'docs/prd/cubox-overlap-analysis.md',
+  'docs/prd/product-performance-score-analysis.md',
+  'docs/prd/testing-strategy-and-release-gate.md',
+  'docs/prd/e2e-acceptance-checklist.md',
+  'docs/prd/testing-asset-register-template.md',
+  'docs/prd/development-guidelines.md',
+  'docs/prd/frontend-architecture-messaging.md',
+  'docs/prd/web-admin-evolution-roadmap.md',
+  'docs/prd/plugin-to-web-migration.md',
   'docs/design/06-ux-spec.md',
-  'docs/design/07-ui-design-spec.md'
+  'docs/design/07-ui-design-spec.md',
+  'docs/DEPLOYMENT.md',
+  'docs/EVALUATION_AND_OPTIMIZATION_PLAN.md',
+  'docs/TESTING_SUMMARY.md',
+  'docs/api-documentation.md',
+  'docs/database-performance-analysis.md'
 ]
 
 const forbiddenRefs = [...forbiddenFiles]
@@ -37,7 +58,14 @@ const requiredReadmeHints = [
   'docs/design/ux-spec.md',
   'docs/design/ui-design-spec.md',
   'docs/prd/World-Link-Alpha-PRD-overview.md',
-  'docs/prd/TODO.md'
+  'docs/prd/TODO.md',
+  'docs/prd/freemium-cloud-architecture.md',
+  'docs/prd/competitive-analysis.md',
+  'docs/prd/technical-guidelines.md',
+  'docs/prd/testing-strategy.md',
+  'docs/prd/evolution-roadmap.md',
+  'docs/prd/marketing-plan.md',
+  'docs/prd/activation-event-dictionary.md'
 ]
 const contentSentinels = {
   'docs/design/ui-design-spec.md': '# UI Design Spec: World-Link Alpha',
