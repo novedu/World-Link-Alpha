@@ -1,5 +1,12 @@
 # World-Link Alpha
 
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Chrome](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4)
+![CI](https://img.shields.io/badge/CI-4%20workflows-success)
+
+> ⚠️ **AI 实现说明（如实披露）** 见下方 [AI 实现说明](#ai-实现说明如实披露)：
+> AI 辅助端点为**本地启发式实现**，非模型调用。
+
 > 给虚构世界观创作者的浏览器采集与管理工具。
 > 在网页上划词右键，把「矿石 / 势力 / 地名 / 历史事件」直接变成结构化实体，
 > 并在 Sidepanel 里持续管理你的世界资产。
@@ -97,6 +104,37 @@ Chrome Extension（Manifest V3）+ 全栈后端。
 
 `scripts/check-docs-consistency.mjs` 接入 CI，防止文档描述和代码实现脱节——
 这个问题在长期项目里非常常见，所以做成了流水线门禁。
+
+## AI 实现说明（如实披露）
+
+本项目含 AI 相关功能，但**不是 LLM 应用**。为避免误读，这里写清实现方式。
+
+### 6 个 AI 相关端点
+
+| 端点 | 作用 |
+|---|---|
+| `POST /ai/entity-assist` | 实体文本总结 / 扩写 |
+| `POST /ai/entity-conflict` | 检测设定冲突 |
+| `POST /ai/parse-manuscript` | 从正文中抽取实体与关系候选 |
+| `POST /ai/semantic-search` | 语义检索 |
+| `POST /ai/report-feedback` | 反馈上报 |
+| `POST /ai/generate-image` | 实体配图生成 |
+
+### 实现方式
+
+- **前 5 个走本地启发式算法**（`backend/src/services/aiService.ts`）：
+  停用词表过滤 + 词频统计 + 置信度打分，属于**规则与统计方法，不调用大模型**
+- 前端 provider 字段的实际取值为 **`local-heuristic`**，UI 中会如实显示
+- **只有 `generate-image` 调用外部服务**：ByteDance `neeko-copilot` 文生图接口
+- 后端依赖中**没有任何 AI SDK**（无 OpenAI / Anthropic / LangChain 等），
+  全仓库 `fetch(` 在 AI 服务内出现 **0 处**
+
+### 边界
+
+- 前端已预留 `cloud-model` provider 选项与模型选择 UI，**但后端未实现真实模型接入**
+- 因此本项目定位为 **AI 辅助的产品化探索**，而非 LLM 应用
+
+---
 
 ## 快速开始
 
