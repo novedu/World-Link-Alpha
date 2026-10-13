@@ -1,186 +1,159 @@
-# mini-form-engine
+# World-Link Alpha
 
-> Schema 驱动的低代码表单引擎：把「表单长什么样」全部交给 Schema 描述，
-> 把「字段此刻能不能编辑、该显示什么」交给一个多来源的状态决策引擎。
+> 给虚构世界观创作者的浏览器采集与管理工具。
+> 在网页上划词右键，把「矿石 / 势力 / 地名 / 历史事件」直接变成结构化实体，
+> 并在 Sidepanel 里持续管理你的世界资产。
 
-一个完整闭环的低代码表单方案，包含 **Runtime Core（引擎）**、
-**Designer（可视化设计器）**、**Config Server（配置服务）** 和 **OA Demo（真实应用验证）** 四部分。
+Chrome Extension（Manifest V3）+ 全栈后端。
 
 ---
 
-## 这个引擎解决什么问题
+## 要解决的问题
 
-普通的动态表单只做「Schema → 渲染」。但真实的企业表单远不止渲染：
+虚构世界观创作者（网文 / 游戏 / 剧本）在浏览网页、写书和整理设定时，长期面临三个连续问题：
 
-- 字段状态不只由 Schema 决定，还取决于**权限、审批流程节点、联动规则**
-- 多来源冲突时，谁说了算？
-- Schema 会迭代，**历史任务必须能打开它创建时的那一版**
-- Schema 升级后，旧数据要能迁移
+1. **灵感来源分散** —— 看到「矿石 / 势力 / 地名 / 历史事件」时，很难即时结构化收集
+2. **无法表达复用关系** —— 世界观会跨多本书复用，但传统笔记工具只有扁平文本，
+   表达不了「世界级资产」和「某本书实际用到的资产」之间的区别
+3. **规模上来后失效** —— 实体数量增长后，纯文本整理迅速失去检索效率和复用效率
 
-这个项目把这四件事都做成了引擎能力，而不是散落在业务代码里的 if/else。
+## 核心设计
 
-## 核心能力
+### 双入口采集
 
-### 1. 多来源字段状态决策引擎
-
-字段的最终状态由四个 Provider 共同决定，且有**明确的优先级**：
-
-```text
-Permission  >  BPM  >  Rule  >  Schema
-（权限）      （流程）  （规则）  （Schema 基线）
-```
-
-- `permission-state-provider` —— 权限体系决定的可见性 / 可编辑性
-- `bpm-state-provider` —— 当前审批节点决定的状态（例如：经理节点金额只读）
-- `rule-state-provider` —— 联动规则计算出的状态
-- `schema-state-provider` —— Schema 里声明的基线状态
-
-`field-state-resolver` 负责仲裁并产出最终 `FieldState`。
-把优先级显式建模，比把它藏在渲染顺序里可靠得多。
-
-### 2. 依赖图与规则调度
-
-- `dependency/dependency-graph.ts` —— 解析字段间的依赖关系，避免循环依赖与重复计算
-- `scheduler/rule-scheduler.ts` —— 按依赖拓扑顺序调度规则求值，只重算受影响字段
-
-### 3. Schema 版本与冻结
-
-- `schema-version/schema-registry.ts` + `schema-version-resolver.ts`
-- **版本冻结语义**：历史任务打开时，永远使用它创建时那一版 Schema，不受后续改版影响
-
-### 4. 数据迁移管线
-
-`migration/` 实现完整的迁移流程，而不是脚本硬改：
-
-```text
-Validation（五类校验器）
-   → Report（迁移报告）
-   → Dry Run（Before / After 预览）
-   → Execution（Operation Log 可追溯）
-```
-
-### 5. 子表单
-
-`subform/subform-core.ts` —— 子表单的结构、状态与校验接入主流程。
-
-### 6. 渲染器解耦
-
-`renderer/component-map.ts` + `vue-components.ts` —— 组件通过 ComponentMap 注册，
-渲染器不感知具体 UI 库。这让同一套引擎可以对接不同组件库（Demo 里接的是 Element Plus）。
-
-## 仓库结构
-
-```text
-mini-form-engine/
-├── src/                      Runtime Core（引擎本体，零 UI 依赖）
-│   ├── schema.ts              Schema 定义
-│   ├── renderer/              组件映射与渲染配置
-│   ├── runtime/               oa-runtime 运行时
-│   ├── state-resolution/      ★ 多来源字段状态决策
-│   ├── dependency/            ★ 依赖图
-│   ├── scheduler/             ★ 规则调度
-│   ├── schema-version/        ★ 版本注册与解析
-│   ├── migration/             ★ 迁移管线
-│   └── subform/               子表单
-│
-├── config-server/            配置服务（表单发布 / 元数据 / 校验 / 运行时配置下发）
-├── designer-app/             可视化设计器（Vue3 + Element Plus + Vite）
-│   ├── schema/               Schema 设计
-│   ├── rule-designer/        规则设计
-│   └── permission-designer/  权限设计
-│
-└── demo-app/                 企业 OA 演示应用（消费 Runtime Core）
-    ├── layout/               布局
-    ├── components/           FieldStatePanel / DebugDrawer / MigrationReportView
-    ├── adapters/             ★ 接入层：Element Plus 组件注册、宿主语义适配
-    └── stores/               运行时状态
-```
-
-### 关键的架构边界
-
-**Demo 应用不复制任何核心实现。** Schema 解析、规则求值、依赖图、状态决策、
-迁移校验与执行全部调用 Runtime Core；应用侧只通过 `adapters/` 接入：
-
-- `element-component-registry.ts` —— 把 Element Plus 组件登记进核心 ComponentMap
-- `host-components.ts` —— 宿主语义适配（例如 `readonly` 在数字组件上的差异）
-- `runtime-engine.ts` / `config-gateway-client.ts` —— 运行时与配置服务的对接
-
-这个边界是刻意守住的：**它证明引擎真的可以被别的应用复用，而不是和 Demo 长在一起。**
-
-## 架构数据流
-
-```text
-Config Server（mock / 真实）
-   │ schemaVersion / 任务节点 / 角色 / 权限
-   ▼
-SchemaVersion Resolver ──▶ Schema Registry ──▶ Schema 实例
-                                                │
-RuntimeContext（核心适配层拍平为 ctx.* 事实）    │
-        │                                       ▼
-        └──────────────▶ Rule / BPM / Permission Provider
-                                │
-                    State Resolution Engine
-                    （Permission > BPM > Rule > Schema）
-                                │
-                         Final FieldState
-                                │
-Schema ─▶ ComponentMap ─▶ Renderer(buildRenderConfigs)
-                                │
-                          RuntimeForm
-                                │
-                          Element Plus UI
-```
-
-## Demo 应用演示了什么
-
-| 页面 | 演示内容 |
+| 入口 | 职责 |
 |---|---|
-| **我的申请** | 采购申请单由 Runtime Core 生成；右侧 FieldState Inspector 展示每个状态键**来自哪个 Provider** |
-| **审批中心** | 员工填写 → 部门经理审批 → 财务审批 → 完成。切换节点实时重算字段状态：员工节点 `amount` 可编辑，经理/财务节点只读，金额 > 5000 显示 warning |
-| **Schema 管理** | `orderForm` 的 v1 / v2 对比（`amount: NumberInput → MoneyInput`，新增 `currency`），演示版本冻结 |
-| **数据迁移** | Validation → Report → Dry Run → Execution 完整管线，可切换「坏计划」查看 error 场景 |
+| `content.js` | 网页内划词采集弹窗，右键把选中文本直接转成结构化实体 |
+| `background.js` | 右键菜单入口、采集路径与存储协调 |
+| `sidepanel` | 世界资产的持续管理界面 |
 
-右上角 **Runtime Debug** 面板（类 DevTools）：
-FormData / Schema / RuntimeContext / Dependency Graph / Rule Trace / FieldState。
+### BookEntityUsage：把「世界资产」和「书籍视图」解耦
+
+这是整个项目最关键的数据模型设计。
+
+世界观跨书复用时，如果直接让实体挂在书下面，同一份设定就会被复制多次，最终无法维护。
+所以这里引入了 `BookEntityUsage` 映射层：
+
+- **世界（World）** 持有唯一的实体资产
+- **书项目（Book Project）** 通过 `BookEntityUsage` 引用它实际用到的实体子集
+- 选定书项目后，实体列表可切换到「仅本书使用」视图——**同一份世界设定，服务多本书，互不污染**
+
+## 技术架构
+
+```text
+┌──────────────────────────────────────────────┐
+│  Chrome Extension (Manifest V3)              │
+│  ├─ content.js      网页内采集弹窗            │
+│  ├─ background.js   右键入口 / 路径协调       │
+│  └─ sidepanel       React + daisyUI 管理台    │
+└───────────────────────┬──────────────────────┘
+                        │  runtimeApi
+┌───────────────────────▼──────────────────────┐
+│  Backend   Express + Prisma                  │
+│  routes / services / middleware / schemas     │
+│  observability / config                      │
+│  JWT 鉴权 · bcrypt · helmet · zod · winston   │
+└───────────────────────┬──────────────────────┘
+                        │
+              Prisma（SQLite 默认，可切 PostgreSQL）
+```
+
+### 技术栈
+
+| 层 | 技术 |
+|---|---|
+| 扩展 | Manifest V3、Content Script、Side Panel API、contextMenus、scripting |
+| 前端 | React、daisyUI、axios |
+| 后端 | Node.js、Express、Prisma |
+| 安全 | JWT、bcrypt、helmet、express-validator、zod |
+| 观测 | winston + 日志按日轮转 |
+| 交付 | Docker Compose |
+
+## 工程实践
+
+工程治理是这个项目刻意练习的部分：
+
+### 4 条 CI 流水线
+
+| Workflow | 触发 | 用途 |
+|---|---|---|
+| `ci.yml` | push / PR | 主流水线 |
+| `verify.yml` | push / PR | 提交校验 |
+| `security.yml` | PR / 定时 | 安全扫描 |
+| `release-gate.yml` | 手动 | 发布门禁 |
+
+### 13 个测试文件，分层覆盖
+
+- **后端**：`contract`（接口契约）、`functional`（功能）、`e2e-core-flow`（核心链路）、
+  `e2e-entitlement-guards`（权益边界）
+- **前端**：工具函数 `entityUtils` / `captureUtils` / `conflictUtils` / `aiUtils` / `assistUtils`、
+  组件 `WorldSummaryCard` / `PrimaryTabBar`、服务 `exportService` / `runtimeApi`
+
+### 30 篇文档
+
+含 PRD、竞品分析、测试策略、发布门禁、技术规范、演进路线图、指标口径字典。
+
+### 文档一致性检查
+
+`scripts/check-docs-consistency.mjs` 接入 CI，防止文档描述和代码实现脱节——
+这个问题在长期项目里非常常见，所以做成了流水线门禁。
 
 ## 快速开始
 
+### 后端
+
 ```bash
-# 引擎单测
+cd backend
 npm install
-npm test
-
-# 设计器
-cd designer-app && npm install && npm run dev
-
-# OA 演示应用
-cd demo-app && npm install && npm run dev     # http://localhost:5173
+npm run db:generate
+npm run db:migrate
+npm run dev              # tsx watch src/index.ts
 ```
 
-## 测试
-
-**26 个测试文件**，覆盖引擎核心与两个应用，使用 Node 内置 `node:test`（通过 `tsx` 运行）：
-
-- **引擎**：依赖图、规则调度、运行时、字段状态解析、子表单、Schema 版本、迁移与迁移执行
-- **配置服务**：config-store、form-service、form-metadata、publish-service、
-  runtime-config-client、validation
-- **设计器**：Schema 树模型与构建、布局、栅格、规则模型与构建、权限模型与构建、designer store
-- **演示应用**：Schema 共享逻辑
+### Sidepanel
 
 ```bash
-npm test          # 一次跑完引擎 + 配置服务 + 演示应用的全部单测
+cd sidepanel
+npm install
+npm run dev
 ```
 
-## 技术栈
+### 加载扩展
 
-`TypeScript` `Vue 3` `Vite` `Element Plus` `node:test` `tsx`
+Chrome → `chrome://extensions` → 打开「开发者模式」→「加载已解压的扩展程序」→ 选择仓库根目录。
 
-引擎本体（`src/`）零 UI 框架依赖，UI 通过 ComponentMap 注入。
+## 常用命令
+
+```bash
+# 后端
+npm run test              # contract + e2e
+npm run test:e2e
+npm run typecheck
+npm run lint
+npm run db:studio         # Prisma Studio
+
+# Sidepanel
+npm run test
+npm run check:docs        # 文档一致性检查
+npm run typecheck
+```
+
+## 文档索引
+
+| 文档 | 内容 |
+|---|---|
+| [产品总览 PRD](docs/prd/World-Link-Alpha-PRD-overview.md) | 范围、目标、对象模型、路线图、评分卡 |
+| [测试策略](docs/prd/testing-strategy.md) | 分层测试、E2E 清单、发布门禁、测试台账 |
+| [技术规范](docs/prd/technical-guidelines.md) | 架构、模块化、消息协议、工程治理 |
+| [竞品分析](docs/prd/competitive-analysis.md) | 产品定位与 SWOT |
+| [演进路线图](docs/prd/evolution-roadmap.md) | 插件 → Web/Admin 的分阶段迁移 |
+| [免费/收费分层架构](docs/prd/freemium-cloud-architecture.md) | 云端化与权益分层方案 |
+| [激活事件字典](docs/prd/activation-event-dictionary.md) | 北极星指标埋点口径 |
 
 ## 当前状态
 
-引擎核心、设计器、配置服务与演示应用已形成闭环。
-尚未接入 CI 流水线，也未添加 LICENSE。
+Alpha 阶段。核心采集与管理链路已打通，工程治理（CI、测试、文档门禁）已建立。
+最后更新：2026-04。
 
 ## 许可证
 
