@@ -71,3 +71,8 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# 环境变量：仅保留 .example 模板
+.env.development
+.env.test
+!.env.example
