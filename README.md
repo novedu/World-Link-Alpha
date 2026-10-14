@@ -4,8 +4,7 @@
 ![Chrome](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4)
 ![CI](https://img.shields.io/badge/CI-4%20workflows-success)
 
-> ⚠️ **AI 实现说明（如实披露）** 见下方 [AI 实现说明](#ai-实现说明如实披露)：
-> AI 辅助端点为**本地启发式实现**，非模型调用。
+> AI 辅助端点为**本地启发式实现**，详见 [AI 功能实现](#ai-功能实现)。
 
 > 给虚构世界观创作者的浏览器采集与管理工具。
 > 在网页上划词右键，把「矿石 / 势力 / 地名 / 历史事件」直接变成结构化实体，
@@ -105,9 +104,9 @@ Chrome Extension（Manifest V3）+ 全栈后端。
 `scripts/check-docs-consistency.mjs` 接入 CI，防止文档描述和代码实现脱节——
 这个问题在长期项目里非常常见，所以做成了流水线门禁。
 
-## AI 实现说明（如实披露）
+## AI 功能实现
 
-本项目含 AI 相关功能，但**不是 LLM 应用**。为避免误读，这里写清实现方式。
+本项目包含 AI 辅助功能，实现方式为本地启发式算法与外部文生图服务。
 
 ### 6 个 AI 相关端点
 
